@@ -2,7 +2,10 @@ package dev.marcelo.clinicflow.infrastructure.persistence;
 
 import dev.marcelo.clinicflow.core.enums.ClinicStatus;
 import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,9 +21,13 @@ public class ClinicEntity {
     private Long id;
     private String name;
     private String address;
+    @Column(unique = true)
     private String phone;
+    @Column(unique = true)
     private String email;
+    @Enumerated(EnumType.STRING)
     private ClinicStatus status;
+    @Enumerated(EnumType.STRING)
     private Set<DoctorSpecialty> specialties;
 
     public ClinicEntity() {
