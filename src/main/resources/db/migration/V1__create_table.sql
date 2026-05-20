@@ -1,0 +1,44 @@
+CREATE TABLE IF NOT EXISTS clinicas (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    phone VARCHAR(20)  NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(50)  NOT NULL,
+    specialties VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS medicos (
+    id BIGSERIAL PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name  VARCHAR(255) NOT NULL,
+    cpf VARCHAR(14)  NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    address VARCHAR(255),
+    phone VARCHAR(20)  NOT NULL UNIQUE,
+    age INTEGER,
+    crm VARCHAR(20)  NOT NULL UNIQUE,
+    gender VARCHAR(20)  NOT NULL,
+    specialty VARCHAR(50)  NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pacientes (
+    id BIGSERIAL PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name  VARCHAR(255) NOT NULL,
+    cpf VARCHAR(14)  NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    address VARCHAR(255),
+    phone VARCHAR(20)  NOT NULL UNIQUE,
+    age INTEGER,
+    gender VARCHAR(20)  NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS consultas (
+    id BIGSERIAL PRIMARY KEY,
+    clinica_id BIGINT NOT NULL REFERENCES clinicas(id),
+    medico_id BIGINT NOT NULL REFERENCES medicos(id),
+    paciente_id BIGINT NOT NULL REFERENCES pacientes(id),
+    scheduled_at TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL
+);
