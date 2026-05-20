@@ -8,7 +8,8 @@ import java.util.Set;
 
 public record Clinic(
         Long id,
-        String name,
+        String firstMame,
+        String lastMame,
         String address,
         String phone,
         String email,
