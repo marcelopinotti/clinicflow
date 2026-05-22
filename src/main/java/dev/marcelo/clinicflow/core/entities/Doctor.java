@@ -6,7 +6,8 @@ import dev.marcelo.clinicflow.core.enums.Gender;
 
 public record Doctor(
         Long id,
-        String name,
+        String firstName,
+        String lastName,
         String cpf,
         String email,
         String address,
