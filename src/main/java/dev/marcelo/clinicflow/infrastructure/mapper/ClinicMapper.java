@@ -11,7 +11,7 @@ public class ClinicMapper {
 
     public Clinic toEntity(ClinicRequest request) {
         return new Clinic(
-                null,
+                request.id(),
                 request.name(),
                 request.address(),
                 request.phone(),

@@ -14,7 +14,7 @@ public class AppointmentMapper {
 
     public Appointment toEntity(AppointmentRequest request, Clinic clinic, Doctor doctor, Patient patient) {
         return new Appointment(
-                null,
+                request.id(),
                 clinic,
                 doctor,
                 patient,

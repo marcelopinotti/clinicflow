@@ -10,7 +10,7 @@ public class PatientMapper {
 
     public Patient toEntity(PatientRequest request) {
         return new Patient(
-                null,
+                request.id(),
                 request.firstName(),
                 request.lastName(),
                 request.cpf(),

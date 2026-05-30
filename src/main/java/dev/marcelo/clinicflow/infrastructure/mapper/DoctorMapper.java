@@ -1,9 +1,8 @@
 package dev.marcelo.clinicflow.infrastructure.mapper;
 
 import dev.marcelo.clinicflow.core.entities.Doctor;
-import dev.marcelo.clinicflow.infrastructure.dtos.DoctorAdminResponse;
-import dev.marcelo.clinicflow.infrastructure.dtos.DoctorPublicResponse;
 import dev.marcelo.clinicflow.infrastructure.dtos.DoctorRequest;
+import dev.marcelo.clinicflow.infrastructure.dtos.DoctorResponse;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,7 +10,7 @@ public class DoctorMapper {
 
     public Doctor toEntity(DoctorRequest request) {
         return new Doctor(
-                null,
+                request.id(),
                 request.firstName(),
                 request.lastName(),
                 request.cpf(),
@@ -25,18 +24,8 @@ public class DoctorMapper {
         );
     }
 
-    public DoctorPublicResponse toPublicResponse(Doctor doctor) {
-        return new DoctorPublicResponse(
-                doctor.id(),
-                doctor.firstName(),
-                doctor.lastName(),
-                doctor.crm(),
-                doctor.specialty()
-        );
-    }
-
-    public DoctorAdminResponse toAdminResponse(Doctor doctor) {
-        return new DoctorAdminResponse(
+    public DoctorResponse toResponse(Doctor doctor) {
+        return new DoctorResponse(
                 doctor.id(),
                 doctor.firstName(),
                 doctor.lastName(),
