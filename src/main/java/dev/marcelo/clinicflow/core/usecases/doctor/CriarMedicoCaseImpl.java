@@ -12,6 +12,6 @@ public class CriarMedicoCaseImpl implements CriarMedicoCase {
 
     @Override
     public Doctor execute(Doctor doctor) {
-        return null;
+        return doctorGateway.criarDoutor(doctor);
     }
 }

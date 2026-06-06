@@ -15,6 +15,6 @@ public class ListarMedicosCaseImpl implements ListarMedicosCase {
 
     @Override
     public List<Doctor> execute() {
-        return List.of();
+    return doctorGateway.listarDoutor();
     }
 }

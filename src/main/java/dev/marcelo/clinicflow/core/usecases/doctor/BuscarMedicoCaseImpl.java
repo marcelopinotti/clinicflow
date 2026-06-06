@@ -3,6 +3,10 @@ package dev.marcelo.clinicflow.core.usecases.doctor;
 import dev.marcelo.clinicflow.core.entities.Doctor;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
 
+import javax.print.Doc;
+import java.util.List;
+import java.util.Optional;
+
 public class BuscarMedicoCaseImpl implements BuscarMedicoCase {
 
     private final DoctorGateway doctorGateway;
@@ -12,7 +16,7 @@ public class BuscarMedicoCaseImpl implements BuscarMedicoCase {
     }
 
     @Override
-    public Doctor execute(Long id) {
-        return null;
+    public Optional<Doctor> execute(long id) {
+        return doctorGateway.buscarDoutor(id);
     }
 }

@@ -12,5 +12,6 @@ public class DeletarMedicoCaseImpl implements DeletarMedicoCase {
 
     @Override
     public void execute(Long id) {
+        doctorGateway.deleteDoutor(id);
     }
 }

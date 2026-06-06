@@ -2,6 +2,9 @@ package dev.marcelo.clinicflow.core.usecases.doctor;
 
 import dev.marcelo.clinicflow.core.entities.Doctor;
 
+import java.util.List;
+import java.util.Optional;
+
 public interface BuscarMedicoCase {
-    Doctor execute(Long id);
+    Optional<Doctor> execute(long id);
 }
