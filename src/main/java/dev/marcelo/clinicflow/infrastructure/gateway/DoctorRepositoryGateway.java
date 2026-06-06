@@ -7,6 +7,9 @@ import dev.marcelo.clinicflow.infrastructure.persistence.DoctorEntity;
 import dev.marcelo.clinicflow.infrastructure.persistence.DoctorRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Optional;
+
 @Component
 public class DoctorRepositoryGateway implements DoctorGateway {
 
@@ -23,6 +26,35 @@ public class DoctorRepositoryGateway implements DoctorGateway {
         DoctorEntity entity = mapper.toEntity(doctor);
         DoctorEntity saved = repository.save(entity);
         return mapper.toDomain(saved);
+    }
+
+    @Override
+    public List<Doctor> listarDoutor() {
+        List<DoctorEntity> entities = repository.findAll();
+        return entities.stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<Doctor> buscarDoutor(Long id) {
+        return repository.findById(id)
+                .map(mapper::toDomain);
+
+
+
+    }
+
+    public Doctor atualizarDoutor(Doctor doctor) {
+        DoctorEntity entity = mapper.toEntity(doctor);
+        DoctorEntity updatedEntity = repository.save(entity);
+        return mapper.toDomain(updatedEntity);
+    }
+    @Override
+    public void deleteDoutor(Long id) {
+        DoctorEntity entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        repository.delete(entity);
     }
 
 
