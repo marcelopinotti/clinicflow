@@ -2,7 +2,7 @@ package dev.marcelo.clinicflow.core.enums;
 
 public enum Gender {
     MALE("Masculino"),
-    FEMALE("Femenino"),
+    FEMALE("Feminino"),
     OTHER("Outro");
 
     private final String descricao;

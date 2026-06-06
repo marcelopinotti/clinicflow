@@ -1,11 +1,11 @@
 package dev.marcelo.clinicflow.core.enums;
 
 public enum DoctorSpecialty {
-    CARDIOLOGY("cardiologista"),
-    DERMATOLOGY("dermatologista"),
-    PEDIATRICS("pediatra"),
-    ORTHOPEDICS("orthopedista"),
-    NEUROLOGY("neurologista");
+    CARDIOLOGY("Cardiologista"),
+    DERMATOLOGY("Dermatologista"),
+    PEDIATRICS("Pediatra"),
+    ORTHOPEDICS("Orthopedista"),
+    NEUROLOGY("Neurologista");
 
     private final String descricao;
 
