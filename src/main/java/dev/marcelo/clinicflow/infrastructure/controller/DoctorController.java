@@ -9,7 +9,6 @@ import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCase;
 import dev.marcelo.clinicflow.infrastructure.dtos.DoctorRequest;
 import dev.marcelo.clinicflow.infrastructure.dtos.DoctorResponse;
 import dev.marcelo.clinicflow.infrastructure.mapper.DoctorMapper;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
