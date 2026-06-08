@@ -1,14 +1,15 @@
 package dev.marcelo.clinicflow.infrastructure.mapper;
 
 import dev.marcelo.clinicflow.core.entities.Patient;
-import dev.marcelo.clinicflow.infrastructure.dtos.PatientRequest;
-import dev.marcelo.clinicflow.infrastructure.dtos.PatientResponse;
+import dev.marcelo.clinicflow.infrastructure.persistence.PatientEntity;
+import org.springframework.stereotype.Component;
 
+@Component
 public class PatientEntityMapper {
 
 
-    public Patient toEntity(PatientRequest request) {
-        return new Patient(
+    public PatientEntity toEntity(Patient request) {
+        return new PatientEntity(
                 request.id(),
                 request.firstName(),
                 request.lastName(),
@@ -21,17 +22,17 @@ public class PatientEntityMapper {
         );
     }
 
-    public PatientResponse toResponse(Patient patient) {
-        return new PatientResponse(
-                patient.id(),
-                patient.firstName(),
-                patient.lastName(),
-                patient.cpf(),
-                patient.email(),
-                patient.address(),
-                patient.phone(),
-                patient.age(),
-                patient.gender()
+    public Patient toDomain(PatientEntity patient) {
+        return new Patient(
+                patient.getId(),
+                patient.getFirstName(),
+                patient.getLastName(),
+                patient.getCpf(),
+                patient.getEmail(),
+                patient.getAddress(),
+                patient.getPhone(),
+                patient.getAge(),
+                patient.getGender()
         );
     }
 }
