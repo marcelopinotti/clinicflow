@@ -12,7 +12,21 @@ public class AtualizarPacienteCaseImpl implements AtualizarPacienteCase {
     }
 
     @Override
-    public Patient execute(Patient patient) {
-        return null;
+    public Patient execute(Long id, Patient patient) {
+        return patientGateway.buscarPaciente(id).map(existingPatient -> {;
+
+            Patient patientUpdate = new Patient(
+                    existingPatient.id(),
+                    patient.firstName(),
+                    patient.lastName(),
+                    patient.cpf(),
+                    patient.email(),
+                    patient.address(),
+                    patient.phone(),
+                    patient.age(),
+                    patient.gender()
+            );
+            return patientGateway.atualizarPaciente(patientUpdate);
+    }).orElseThrow(() -> new RuntimeException("Paciente não encontrado"));
     }
 }

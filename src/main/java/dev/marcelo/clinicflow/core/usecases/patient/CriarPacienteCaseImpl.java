@@ -13,6 +13,6 @@ public class CriarPacienteCaseImpl implements CriarPacienteCase {
 
     @Override
     public Patient execute(Patient patient) {
-        return null;
+        return patientGateway.criarPaciente(patient);
     }
 }

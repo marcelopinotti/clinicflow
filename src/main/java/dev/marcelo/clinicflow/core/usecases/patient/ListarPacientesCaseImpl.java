@@ -15,6 +15,6 @@ public class ListarPacientesCaseImpl implements ListarPacientesCase {
 
     @Override
     public List<Patient> execute() {
-        return List.of();
+        return patientGateway.listarPacientes();
     }
 }

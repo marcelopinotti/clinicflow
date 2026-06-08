@@ -12,5 +12,6 @@ public class DeletarPacienteCaseImpl implements DeletarPacienteCase {
 
     @Override
     public void execute(Long id) {
+        patientGateway.deletePaciente(id);
     }
 }
