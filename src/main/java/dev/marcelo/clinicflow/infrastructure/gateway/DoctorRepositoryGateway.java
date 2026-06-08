@@ -40,9 +40,6 @@ public class DoctorRepositoryGateway implements DoctorGateway {
     public Optional<Doctor> buscarDoutor(Long id) {
         return repository.findById(id)
                 .map(mapper::toDomain);
-
-
-
     }
 
     public Doctor atualizarDoutor(Doctor doctor) {
