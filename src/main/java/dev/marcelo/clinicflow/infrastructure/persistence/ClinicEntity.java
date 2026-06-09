@@ -20,6 +20,8 @@ public class ClinicEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+    @Column(unique = true)
+    private String cnpj;
     private String address;
     @Column(unique = true)
     private String phone;
@@ -33,9 +35,10 @@ public class ClinicEntity {
     public ClinicEntity() {
     }
 
-    public ClinicEntity(Long id, String name, String address, String phone, String email, ClinicStatus status, Set<DoctorSpecialty> specialties) {
+    public ClinicEntity(Long id, String name, String cnpj, String address, String phone, String email, ClinicStatus status, Set<DoctorSpecialty> specialties) {
         this.id = id;
         this.name = name;
+        this.cnpj = cnpj;
         this.address = address;
         this.phone = phone;
         this.email = email;
@@ -57,6 +60,14 @@ public class ClinicEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getCnpj() {
+        return cnpj;
+    }
+
+    public void setCnpj(String cnpj) {
+        this.cnpj = cnpj;
     }
 
     public String getAddress() {
@@ -104,6 +115,7 @@ public class ClinicEntity {
         return "ClinicEntity{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
+                ", cnpj='" + cnpj + '\'' +
                 ", address='" + address + '\'' +
                 ", phone='" + phone + '\'' +
                 ", email='" + email + '\'' +

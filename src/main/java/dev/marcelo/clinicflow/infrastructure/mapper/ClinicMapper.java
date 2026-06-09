@@ -13,6 +13,7 @@ public class ClinicMapper {
         return new Clinic(
                 request.id(),
                 request.name(),
+                request.cnpj(),
                 request.address(),
                 request.phone(),
                 request.email(),
@@ -25,6 +26,7 @@ public class ClinicMapper {
         return new ClinicResponse(
                 clinic.id(),
                 clinic.name(),
+                clinic.cnpj(),
                 clinic.address(),
                 clinic.phone(),
                 clinic.email(),
