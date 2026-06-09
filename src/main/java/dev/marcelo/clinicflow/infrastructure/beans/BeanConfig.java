@@ -1,8 +1,10 @@
 package dev.marcelo.clinicflow.infrastructure.beans;
 
-import dev.marcelo.clinicflow.core.entities.Doctor;
+import dev.marcelo.clinicflow.core.gateway.ClinicGateway;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
+import dev.marcelo.clinicflow.core.usecases.clinic.CriarClinicaCase;
+import dev.marcelo.clinicflow.core.usecases.clinic.CriarClinicaCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.AtualizarMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.AtualizarMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.BuscarMedicoCase;
@@ -80,6 +82,11 @@ public class BeanConfig {
     @Bean
     public DeletarPacienteCase deletarPaciente(PatientGateway gateway) {
         return new DeletarPacienteCaseImpl(gateway);
+    }
+
+    @Bean
+    public CriarClinicaCase criarClinica(ClinicGateway clinicGateway) {
+        return new CriarClinicaCaseImpl(clinicGateway);
     }
 
 }

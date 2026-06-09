@@ -8,6 +8,7 @@ import java.util.Set;
 public record ClinicRequest(
         Long id,
         String name,
+        String cnpj,
         String address,
         String phone,
         String email,
