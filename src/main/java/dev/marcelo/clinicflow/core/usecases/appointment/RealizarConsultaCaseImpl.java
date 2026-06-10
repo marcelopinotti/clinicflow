@@ -1,6 +1,9 @@
 package dev.marcelo.clinicflow.core.usecases.appointment;
 
 import dev.marcelo.clinicflow.core.entities.Appointment;
+import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
+import dev.marcelo.clinicflow.core.exceptions.AppointmentNotFoundException;
+import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentStatusTransitionException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
 
 public class RealizarConsultaCaseImpl implements RealizarConsultaCase {
@@ -13,6 +16,21 @@ public class RealizarConsultaCaseImpl implements RealizarConsultaCase {
 
     @Override
     public Appointment execute(Long id) {
-        return null;
+        Appointment appointment = appointmentGateway.buscarPorId(id)
+                .orElseThrow(() -> new AppointmentNotFoundException(id));
+
+        if (!appointment.status().canTransitionTo(AppointmentStatus.REALIZADA)) {
+            throw new InvalidAppointmentStatusTransitionException(appointment.status(), AppointmentStatus.REALIZADA);
+        }
+
+        Appointment realizada = new Appointment(
+                appointment.id(),
+                appointment.clinic(),
+                appointment.doctor(),
+                appointment.patient(),
+                appointment.scheduledAt(),
+                AppointmentStatus.REALIZADA
+        );
+        return appointmentGateway.salvar(realizada);
     }
 }

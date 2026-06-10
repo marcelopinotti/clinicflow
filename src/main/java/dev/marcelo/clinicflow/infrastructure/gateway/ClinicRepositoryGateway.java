@@ -7,6 +7,8 @@ import dev.marcelo.clinicflow.infrastructure.persistence.ClinicEntity;
 import dev.marcelo.clinicflow.infrastructure.persistence.ClinicRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 @Component
 public class ClinicRepositoryGateway implements ClinicGateway {
 
@@ -28,5 +30,11 @@ public class ClinicRepositoryGateway implements ClinicGateway {
     @Override
     public boolean existePorCnpj(String cnpj) {
         return repository.existsByCnpj(cnpj);
+    }
+
+    @Override
+    public Optional<Clinic> buscarClinica(Long id) {
+        return repository.findById(id)
+                .map(mapper::toDomain);
     }
 }
