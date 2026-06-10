@@ -29,6 +29,16 @@ public class DoctorRepositoryGateway implements DoctorGateway {
     }
 
     @Override
+    public boolean existePorCpf(String cpf) {
+        return repository.existsByCpf(cpf);
+    }
+
+    @Override
+    public boolean existePorCrm(String crm) {
+        return repository.existsByCrm(crm);
+    }
+
+    @Override
     public List<Doctor> listarDoutor() {
         List<DoctorEntity> entities = repository.findAll();
         return entities.stream()

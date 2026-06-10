@@ -9,6 +9,8 @@ import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCase;
 import dev.marcelo.clinicflow.infrastructure.dtos.DoctorRequest;
 import dev.marcelo.clinicflow.infrastructure.dtos.DoctorResponse;
 import dev.marcelo.clinicflow.infrastructure.mapper.DoctorMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +24,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-@RequestMapping("api/v1/doctor")
+@RequestMapping("api/v1/medicos")
 @RestController
 public class DoctorController {
 
@@ -44,9 +46,9 @@ public class DoctorController {
     }
 
     @PostMapping("/criar")
-    public DoctorResponse criar(@RequestBody DoctorRequest request){
+    public ResponseEntity<DoctorResponse> criar(@RequestBody DoctorRequest request){
         Doctor doctor = criarMedicoCase.execute(mapper.toEntity(request));
-        return mapper.toResponse(doctor);
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(doctor));
     }
 
     @GetMapping("/listar")
