@@ -9,6 +9,10 @@ public interface DoctorGateway {
 
     Doctor criarDoutor(Doctor doctor);
 
+    boolean existePorCpf(String cpf);
+
+    boolean existePorCrm(String crm);
+
     List<Doctor> listarDoutor();
 
     Optional<Doctor> buscarDoutor(Long id);

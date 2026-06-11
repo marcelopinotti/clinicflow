@@ -7,4 +7,8 @@ import java.util.List;
 public interface DoctorRepository extends JpaRepository<DoctorEntity,Long> {
 
     List<DoctorEntity> findByClinics_Id(Long clinicId);
+
+    boolean existsByCpf(String cpf);
+
+    boolean existsByCrm(String crm);
 }
