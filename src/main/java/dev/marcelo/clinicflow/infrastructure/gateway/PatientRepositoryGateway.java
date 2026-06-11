@@ -1,6 +1,7 @@
 package dev.marcelo.clinicflow.infrastructure.gateway;
 
 import dev.marcelo.clinicflow.core.entities.Patient;
+import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
 import dev.marcelo.clinicflow.infrastructure.mapper.PatientEntityMapper;
 import dev.marcelo.clinicflow.infrastructure.persistence.PatientEntity;
@@ -53,7 +54,7 @@ public class PatientRepositoryGateway implements PatientGateway {
     @Override
     public void deletePaciente(Long id) {
         PatientEntity entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new PatientNotFoundException(id));
         repository.delete(entity);
 
     }
