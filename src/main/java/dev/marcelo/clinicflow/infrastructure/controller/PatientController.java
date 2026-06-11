@@ -1,6 +1,7 @@
 package dev.marcelo.clinicflow.infrastructure.controller;
 
 import dev.marcelo.clinicflow.core.entities.Patient;
+import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import dev.marcelo.clinicflow.core.usecases.patient.AtualizarPacienteCase;
 import dev.marcelo.clinicflow.core.usecases.patient.BuscarPacienteCase;
 import dev.marcelo.clinicflow.core.usecases.patient.CriarPacienteCase;
@@ -9,6 +10,7 @@ import dev.marcelo.clinicflow.core.usecases.patient.ListarPacientesCase;
 import dev.marcelo.clinicflow.infrastructure.dtos.PatientRequest;
 import dev.marcelo.clinicflow.infrastructure.dtos.PatientResponse;
 import dev.marcelo.clinicflow.infrastructure.mapper.PatientMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,10 +18,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RequestMapping("api/v1/patient")
 @RestController
@@ -43,6 +45,7 @@ public class PatientController {
     }
 
     @PostMapping("/criar")
+    @ResponseStatus(HttpStatus.CREATED)
     public PatientResponse criarPaciente(@RequestBody PatientRequest request){
         Patient patient = criarPacienteCase.execute(mapper.toEntity(request));
         return mapper.toResponse(patient);
@@ -50,14 +53,14 @@ public class PatientController {
 
     @GetMapping("/listar")
     public List<PatientResponse> listarPacientes(){
-        return  listarPacientesCase.execute().stream().map(mapper::toResponse ).collect(Collectors.toList());
+        return listarPacientesCase.execute().stream().map(mapper::toResponse).toList();
     }
 
     @GetMapping("/listar/{id}")
     public PatientResponse buscarPaciente(@PathVariable Long id){
         return buscarPacienteCase.execute(id)
                 .map(mapper::toResponse)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new PatientNotFoundException(id));
     }
 
     @PutMapping("/atualizar/{id}")
