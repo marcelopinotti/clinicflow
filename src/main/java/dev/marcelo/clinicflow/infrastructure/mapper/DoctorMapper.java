@@ -20,7 +20,8 @@ public class DoctorMapper {
                 request.age(),
                 request.crm(),
                 request.gender(),
-                request.specialty()
+                request.specialty(),
+                request.clinicIds()
         );
     }
 
@@ -36,7 +37,8 @@ public class DoctorMapper {
                 doctor.age(),
                 doctor.crm(),
                 doctor.gender(),
-                doctor.specialty()
+                doctor.specialty(),
+                doctor.clinicIds()
         );
     }
 }
