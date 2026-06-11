@@ -1,6 +1,7 @@
 package dev.marcelo.clinicflow.core.usecases.patient;
 
 import dev.marcelo.clinicflow.core.entities.Patient;
+import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
 
 public class AtualizarPacienteCaseImpl implements AtualizarPacienteCase {
@@ -13,8 +14,7 @@ public class AtualizarPacienteCaseImpl implements AtualizarPacienteCase {
 
     @Override
     public Patient execute(Long id, Patient patient) {
-        return patientGateway.buscarPaciente(id).map(existingPatient -> {;
-
+        return patientGateway.buscarPaciente(id).map(existingPatient -> {
             Patient patientUpdate = new Patient(
                     existingPatient.id(),
                     patient.firstName(),
@@ -27,6 +27,6 @@ public class AtualizarPacienteCaseImpl implements AtualizarPacienteCase {
                     patient.gender()
             );
             return patientGateway.atualizarPaciente(patientUpdate);
-    }).orElseThrow(() -> new RuntimeException("Paciente não encontrado"));
+        }).orElseThrow(() -> new PatientNotFoundException(id));
     }
 }
