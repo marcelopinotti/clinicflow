@@ -39,7 +39,8 @@ class CriarMedicoCaseImplTest {
                 42,
                 "CRM-SP-123456",
                 Gender.FEMALE,
-                DoctorSpecialty.CARDIOLOGY
+                DoctorSpecialty.CARDIOLOGY,
+                null
         );
     }
 
@@ -57,7 +58,8 @@ class CriarMedicoCaseImplTest {
                 entrada.age(),
                 entrada.crm(),
                 entrada.gender(),
-                entrada.specialty()
+                entrada.specialty(),
+                entrada.clinicIds()
         );
 
         when(doctorGateway.existePorCpf(entrada.cpf())).thenReturn(false);

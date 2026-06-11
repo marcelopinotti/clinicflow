@@ -1,6 +1,8 @@
 package dev.marcelo.clinicflow.infrastructure.controller.handler;
 
 import dev.marcelo.clinicflow.core.exceptions.ClinicAlreadyExistsException;
+import dev.marcelo.clinicflow.core.exceptions.InvalidScheduleWindowException;
+import dev.marcelo.clinicflow.core.exceptions.OverlappingScheduleException;
 import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorAlreadyExistsException;
 import org.springframework.http.HttpStatus;
@@ -38,6 +40,20 @@ public class GlobalExceptionHandler {
     public ProblemDetail handlePatientNotFound(PatientNotFoundException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problemDetail.setTitle("Paciente não encontrado");
+        return problemDetail;
+    }
+
+    @ExceptionHandler(OverlappingScheduleException.class)
+    public ProblemDetail handleOverlappingSchedule(OverlappingScheduleException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problemDetail.setTitle("Janela de atendimento sobreposta");
+        return problemDetail;
+    }
+
+    @ExceptionHandler(InvalidScheduleWindowException.class)
+    public ProblemDetail handleInvalidScheduleWindow(InvalidScheduleWindowException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Janela de atendimento inválida");
         return problemDetail;
     }
 }
