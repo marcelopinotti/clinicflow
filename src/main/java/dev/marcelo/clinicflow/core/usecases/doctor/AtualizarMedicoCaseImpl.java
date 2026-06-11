@@ -26,7 +26,8 @@ public class AtualizarMedicoCaseImpl implements AtualizarMedicoCase {
                     doctor.age(),
                     doctor.crm(),
                     doctor.gender(),
-                    doctor.specialty()
+                    doctor.specialty(),
+                    doctor.clinicIds()
             );
 
             return doctorGateway.atualizarDoutor(doctorUpdate);
