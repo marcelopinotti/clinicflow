@@ -15,6 +15,6 @@ public class ListarConsultasPorMedicoCaseImpl implements ListarConsultasPorMedic
 
     @Override
     public List<Appointment> execute(Long doctorId) {
-        return List.of();
+        return appointmentGateway.listarPorMedico(doctorId);
     }
 }

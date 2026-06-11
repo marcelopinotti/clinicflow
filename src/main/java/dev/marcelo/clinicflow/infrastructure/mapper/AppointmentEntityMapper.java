@@ -1,38 +1,42 @@
 package dev.marcelo.clinicflow.infrastructure.mapper;
 
 import dev.marcelo.clinicflow.core.entities.Appointment;
-import dev.marcelo.clinicflow.core.entities.Clinic;
-import dev.marcelo.clinicflow.core.entities.Doctor;
-import dev.marcelo.clinicflow.core.entities.Patient;
-import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
-import dev.marcelo.clinicflow.infrastructure.dtos.AppointmentRequest;
-import dev.marcelo.clinicflow.infrastructure.dtos.AppointmentResponse;
+import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentEntity;
+import org.springframework.stereotype.Component;
 
+@Component
 public class AppointmentEntityMapper {
-    public Appointment toEntity(AppointmentRequest request, Clinic clinic, Doctor doctor, Patient patient) {
-        return new Appointment(
-                request.id(),
-                clinic,
-                doctor,
-                patient,
-                request.scheduledAt(),
-                AppointmentStatus.AGENDADA
-        );
+
+    private final ClinicEntityMapper clinicEntityMapper;
+    private final DoctorEntityMapper doctorEntityMapper;
+    private final PatientEntityMapper patientEntityMapper;
+
+    public AppointmentEntityMapper(ClinicEntityMapper clinicEntityMapper, DoctorEntityMapper doctorEntityMapper,
+                                   PatientEntityMapper patientEntityMapper) {
+        this.clinicEntityMapper = clinicEntityMapper;
+        this.doctorEntityMapper = doctorEntityMapper;
+        this.patientEntityMapper = patientEntityMapper;
     }
 
-    public AppointmentResponse toResponse(Appointment appointment) {
-        var clinicId = appointment.clinic() == null ? null : appointment.clinic().id();
-        var doctorId = appointment.doctor() == null ? null : appointment.doctor().id();
-        var patientId = appointment.patient() == null ? null : appointment.patient().id();
-
-        return new AppointmentResponse(
+    public AppointmentEntity toEntity(Appointment appointment) {
+        return new AppointmentEntity(
                 appointment.id(),
-                clinicId,
-                doctorId,
-                patientId,
+                clinicEntityMapper.toEntity(appointment.clinic()),
+                doctorEntityMapper.toEntity(appointment.doctor()),
+                patientEntityMapper.toEntity(appointment.patient()),
                 appointment.scheduledAt(),
                 appointment.status()
         );
+    }
 
+    public Appointment toDomain(AppointmentEntity entity) {
+        return new Appointment(
+                entity.getId(),
+                clinicEntityMapper.toDomain(entity.getClinic()),
+                doctorEntityMapper.toDomain(entity.getDoctor()),
+                patientEntityMapper.toDomain(entity.getPatient()),
+                entity.getScheduledAt(),
+                entity.getStatus()
+        );
     }
 }

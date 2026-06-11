@@ -12,12 +12,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class AppointmentMapper {
 
-    public Appointment toEntity(AppointmentRequest request, Clinic clinic, Doctor doctor, Patient patient) {
+    public Appointment toEntity(AppointmentRequest request) {
         return new Appointment(
                 request.id(),
-                clinic,
-                doctor,
-                patient,
+                referenciaClinica(request.clinicId()),
+                referenciaMedico(request.doctorId()),
+                referenciaPaciente(request.patientId()),
                 request.scheduledAt(),
                 AppointmentStatus.AGENDADA
         );
@@ -36,5 +36,17 @@ public class AppointmentMapper {
                 appointment.scheduledAt(),
                 appointment.status()
         );
+    }
+
+    private Clinic referenciaClinica(Long id) {
+        return id == null ? null : new Clinic(id, null, null, null, null, null, null, null);
+    }
+
+    private Doctor referenciaMedico(Long id) {
+        return id == null ? null : new Doctor(id, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    private Patient referenciaPaciente(Long id) {
+        return id == null ? null : new Patient(id, null, null, null, null, null, null, null, null);
     }
 }
