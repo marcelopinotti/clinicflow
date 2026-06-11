@@ -1,6 +1,7 @@
-package dev.marcelo.clinicflow.infrastructure.controller.handler;
+package dev.marcelo.clinicflow.infrastructure.handler;
 
 import dev.marcelo.clinicflow.core.exceptions.ClinicAlreadyExistsException;
+import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +14,13 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleClinicAlreadyExists(ClinicAlreadyExistsException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problemDetail.setTitle("Clínica já cadastrada");
+        return problemDetail;
+    }
+
+    @ExceptionHandler(PatientNotFoundException.class)
+    public ProblemDetail handlePatientNotFound(PatientNotFoundException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setTitle("Paciente não encontrado");
         return problemDetail;
     }
 }
