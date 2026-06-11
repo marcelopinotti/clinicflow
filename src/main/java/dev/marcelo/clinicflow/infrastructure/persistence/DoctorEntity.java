@@ -6,12 +6,17 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
-import java.util.Objects;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "medicos")
@@ -35,6 +40,14 @@ public class DoctorEntity {
     private Gender gender;
     @Enumerated(EnumType.STRING)
     private DoctorSpecialty specialty;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "medico_clinica",
+            joinColumns = @JoinColumn(name = "medico_id"),
+            inverseJoinColumns = @JoinColumn(name = "clinica_id")
+    )
+    private Set<ClinicEntity> clinics = new HashSet<>();
 
     public DoctorEntity() {
     }
@@ -139,6 +152,14 @@ public class DoctorEntity {
 
     public void setSpecialty(DoctorSpecialty specialty) {
         this.specialty = specialty;
+    }
+
+    public Set<ClinicEntity> getClinics() {
+        return clinics;
+    }
+
+    public void setClinics(Set<ClinicEntity> clinics) {
+        this.clinics = clinics;
     }
 }
 

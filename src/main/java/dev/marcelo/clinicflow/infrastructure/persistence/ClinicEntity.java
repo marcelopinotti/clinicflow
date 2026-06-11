@@ -2,13 +2,17 @@ package dev.marcelo.clinicflow.infrastructure.persistence;
 
 import dev.marcelo.clinicflow.core.enums.ClinicStatus;
 import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 import java.util.Set;
@@ -29,7 +33,13 @@ public class ClinicEntity {
     private String email;
     @Enumerated(EnumType.STRING)
     private ClinicStatus status;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "clinica_especialidades",
+            joinColumns = @JoinColumn(name = "clinica_id")
+    )
     @Enumerated(EnumType.STRING)
+    @Column(name = "especialidade")
     private Set<DoctorSpecialty> specialties;
 
     public ClinicEntity() {
