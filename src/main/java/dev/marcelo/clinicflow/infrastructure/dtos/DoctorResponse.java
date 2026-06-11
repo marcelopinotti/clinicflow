@@ -3,6 +3,8 @@ package dev.marcelo.clinicflow.infrastructure.dtos;
 import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
 import dev.marcelo.clinicflow.core.enums.Gender;
 
+import java.util.Set;
+
 public record DoctorResponse(
         Long id,
         String firstName,
@@ -14,7 +16,8 @@ public record DoctorResponse(
         Integer age,
         String crm,
         Gender gender,
-        DoctorSpecialty specialty
+        DoctorSpecialty specialty,
+        Set<Long> clinicIds
 ) {
 }
 
