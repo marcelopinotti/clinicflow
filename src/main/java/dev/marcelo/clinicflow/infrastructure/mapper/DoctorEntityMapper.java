@@ -10,6 +10,25 @@ import java.util.stream.Collectors;
 
 @Component
 public class DoctorEntityMapper {
+    public DoctorEntity toEntity(Doctor doctor) {
+        if (doctor == null) {
+            return null;
+        }
+        return new DoctorEntity(
+                doctor.id(),
+                doctor.firstName(),
+                doctor.lastName(),
+                doctor.cpf(),
+                doctor.email(),
+                doctor.address(),
+                doctor.phone(),
+                doctor.age(),
+                doctor.crm(),
+                doctor.gender(),
+                doctor.specialty()
+        );
+    }
+
     public DoctorEntity toEntity(Doctor doctor, Set<ClinicEntity> clinics) {
         DoctorEntity entity = new DoctorEntity(
                 doctor.id(),
