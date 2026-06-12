@@ -41,7 +41,7 @@ class CriarMedicoCaseImplTest {
                 "CRM-SP-123456",
                 Gender.FEMALE,
                 DoctorSpecialty.CARDIOLOGY,
-                null
+                Set.of()
         );
     }
 

@@ -59,7 +59,7 @@ class AgendarConsultaCaseImplTest {
 
     private Doctor medico() {
         return new Doctor(20L, "Ana", "Lima", "111", "ana@x.com", "Rua B", "1198", 40, "CRM1",
-                Gender.values()[0], DoctorSpecialty.values()[0], null);
+                Gender.values()[0], DoctorSpecialty.values()[0], Set.of());
     }
 
     private Patient paciente() {
