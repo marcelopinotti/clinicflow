@@ -7,10 +7,12 @@ import dev.marcelo.clinicflow.core.usecases.appointment.CancelarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.ConfirmarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorPacienteCase;
+import dev.marcelo.clinicflow.core.usecases.appointment.ReagendarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.RealizarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.RegistrarNoShowCase;
 import dev.marcelo.clinicflow.infrastructure.dtos.AppointmentRequest;
 import dev.marcelo.clinicflow.infrastructure.dtos.AppointmentResponse;
+import dev.marcelo.clinicflow.infrastructure.dtos.ReagendarConsultaRequest;
 import dev.marcelo.clinicflow.infrastructure.mapper.AppointmentMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class AppointmentController {
     private final AgendarConsultaCase agendarConsultaCase;
     private final ConfirmarConsultaCase confirmarConsultaCase;
     private final CancelarConsultaCase cancelarConsultaCase;
+    private final ReagendarConsultaCase reagendarConsultaCase;
     private final RealizarConsultaCase realizarConsultaCase;
     private final RegistrarNoShowCase registrarNoShowCase;
     private final BuscarConsultaCase buscarConsultaCase;
@@ -41,7 +44,8 @@ public class AppointmentController {
 
     public AppointmentController(AppointmentMapper mapper, AgendarConsultaCase agendarConsultaCase,
                                  ConfirmarConsultaCase confirmarConsultaCase, CancelarConsultaCase cancelarConsultaCase,
-                                 RealizarConsultaCase realizarConsultaCase, RegistrarNoShowCase registrarNoShowCase,
+                                 ReagendarConsultaCase reagendarConsultaCase, RealizarConsultaCase realizarConsultaCase,
+                                 RegistrarNoShowCase registrarNoShowCase,
                                  BuscarConsultaCase buscarConsultaCase,
                                  ListarConsultasPorMedicoCase listarConsultasPorMedicoCase,
                                  ListarConsultasPorPacienteCase listarConsultasPorPacienteCase) {
@@ -49,6 +53,7 @@ public class AppointmentController {
         this.agendarConsultaCase = agendarConsultaCase;
         this.confirmarConsultaCase = confirmarConsultaCase;
         this.cancelarConsultaCase = cancelarConsultaCase;
+        this.reagendarConsultaCase = reagendarConsultaCase;
         this.realizarConsultaCase = realizarConsultaCase;
         this.registrarNoShowCase = registrarNoShowCase;
         this.buscarConsultaCase = buscarConsultaCase;
@@ -70,6 +75,11 @@ public class AppointmentController {
     @PatchMapping("/{id}/cancelar")
     public AppointmentResponse cancelar(@PathVariable Long id) {
         return mapper.toResponse(cancelarConsultaCase.execute(id));
+    }
+
+    @PatchMapping("/{id}/reagendar")
+    public AppointmentResponse reagendar(@PathVariable Long id, @RequestBody ReagendarConsultaRequest request) {
+        return mapper.toResponse(reagendarConsultaCase.execute(id, request.scheduledAt()));
     }
 
     @PatchMapping("/{id}/realizar")
