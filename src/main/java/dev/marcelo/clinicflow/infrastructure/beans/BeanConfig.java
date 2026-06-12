@@ -17,6 +17,8 @@ import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorMedico
 import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorPacienteCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.ListarConsultasPorPacienteCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.appointment.ReagendarConsultaCase;
+import dev.marcelo.clinicflow.core.usecases.appointment.ReagendarConsultaCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.appointment.RealizarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.RealizarConsultaCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.appointment.RegistrarNoShowCase;
@@ -150,6 +152,11 @@ public class BeanConfig {
     @Bean
     public CancelarConsultaCase cancelarConsulta(AppointmentGateway appointmentGateway) {
         return new CancelarConsultaCaseImpl(appointmentGateway);
+    }
+
+    @Bean
+    public ReagendarConsultaCase reagendarConsulta(AppointmentGateway appointmentGateway) {
+        return new ReagendarConsultaCaseImpl(appointmentGateway);
     }
 
     @Bean
