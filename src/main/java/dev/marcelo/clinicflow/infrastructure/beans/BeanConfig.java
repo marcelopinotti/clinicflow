@@ -39,6 +39,8 @@ import dev.marcelo.clinicflow.core.usecases.doctor.ListarAgendaMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.ListarAgendaMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarSlotsLivresCase;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarSlotsLivresCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.RemoverAgendaMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.RemoverAgendaMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.patient.AtualizarPacienteCase;
@@ -97,6 +99,12 @@ public class BeanConfig {
     @Bean
     public RemoverAgendaMedicoCase removerAgendaMedico(DoctorScheduleGateway doctorScheduleGateway) {
         return new RemoverAgendaMedicoCaseImpl(doctorScheduleGateway);
+    }
+
+    @Bean
+    public ListarSlotsLivresCase listarSlotsLivres(DoctorGateway doctorGateway, DoctorScheduleGateway doctorScheduleGateway,
+                                                   AppointmentGateway appointmentGateway) {
+        return new ListarSlotsLivresCaseImpl(doctorGateway, doctorScheduleGateway, appointmentGateway);
     }
 
     @Bean
