@@ -3,6 +3,7 @@ package dev.marcelo.clinicflow.infrastructure.beans;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
 import dev.marcelo.clinicflow.core.gateway.ClinicGateway;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
+import dev.marcelo.clinicflow.core.gateway.DoctorScheduleGateway;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
 import dev.marcelo.clinicflow.core.usecases.appointment.AgendarConsultaCase;
 import dev.marcelo.clinicflow.core.usecases.appointment.AgendarConsultaCaseImpl;
@@ -30,10 +31,18 @@ import dev.marcelo.clinicflow.core.usecases.doctor.BuscarMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.BuscarMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.CriarMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.CriarMedicoCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.doctor.DefinirAgendaMedicoCase;
+import dev.marcelo.clinicflow.core.usecases.doctor.DefinirAgendaMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.DeletarMedicoCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.DeletarMedicoCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarAgendaMedicoCase;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarAgendaMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCase;
 import dev.marcelo.clinicflow.core.usecases.doctor.ListarMedicosCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarSlotsLivresCase;
+import dev.marcelo.clinicflow.core.usecases.doctor.ListarSlotsLivresCaseImpl;
+import dev.marcelo.clinicflow.core.usecases.doctor.RemoverAgendaMedicoCase;
+import dev.marcelo.clinicflow.core.usecases.doctor.RemoverAgendaMedicoCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.patient.AtualizarPacienteCase;
 import dev.marcelo.clinicflow.core.usecases.patient.AtualizarPacienteCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.patient.BuscarPacienteCase;
@@ -75,6 +84,27 @@ public class BeanConfig {
     @Bean
     public DeletarMedicoCase deletarMedico(DoctorGateway doctorGateway) {
         return new DeletarMedicoCaseImpl(doctorGateway);
+    }
+
+    @Bean
+    public DefinirAgendaMedicoCase definirAgendaMedico(DoctorScheduleGateway doctorScheduleGateway, DoctorGateway doctorGateway) {
+        return new DefinirAgendaMedicoCaseImpl(doctorScheduleGateway, doctorGateway);
+    }
+
+    @Bean
+    public ListarAgendaMedicoCase listarAgendaMedico(DoctorScheduleGateway doctorScheduleGateway) {
+        return new ListarAgendaMedicoCaseImpl(doctorScheduleGateway);
+    }
+
+    @Bean
+    public RemoverAgendaMedicoCase removerAgendaMedico(DoctorScheduleGateway doctorScheduleGateway) {
+        return new RemoverAgendaMedicoCaseImpl(doctorScheduleGateway);
+    }
+
+    @Bean
+    public ListarSlotsLivresCase listarSlotsLivres(DoctorGateway doctorGateway, DoctorScheduleGateway doctorScheduleGateway,
+                                                   AppointmentGateway appointmentGateway) {
+        return new ListarSlotsLivresCaseImpl(doctorGateway, doctorScheduleGateway, appointmentGateway);
     }
 
     @Bean
