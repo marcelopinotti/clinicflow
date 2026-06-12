@@ -4,6 +4,8 @@ import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentEntity;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
+
 @Component
 public class AppointmentEntityMapper {
 
@@ -22,7 +24,7 @@ public class AppointmentEntityMapper {
         return new AppointmentEntity(
                 appointment.id(),
                 clinicEntityMapper.toEntity(appointment.clinic()),
-                doctorEntityMapper.toEntity(appointment.doctor()),
+                doctorEntityMapper.toEntity(appointment.doctor(), Set.of()),
                 patientEntityMapper.toEntity(appointment.patient()),
                 appointment.scheduledAt(),
                 appointment.status()

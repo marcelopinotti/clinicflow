@@ -22,4 +22,8 @@ public enum AppointmentStatus {
     public boolean canTransitionTo(AppointmentStatus target) {
         return allowedTransitions.contains(target);
     }
+
+    public boolean isReschedulable() {
+        return this == AGENDADA || this == CONFIRMADA;
+    }
 }

@@ -5,6 +5,7 @@ import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
 import dev.marcelo.clinicflow.core.enums.Gender;
 import dev.marcelo.clinicflow.core.exceptions.DoctorAlreadyExistsException;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,7 +40,8 @@ class CriarMedicoCaseImplTest {
                 42,
                 "CRM-SP-123456",
                 Gender.FEMALE,
-                DoctorSpecialty.CARDIOLOGY
+                DoctorSpecialty.CARDIOLOGY,
+                Set.of()
         );
     }
 
@@ -57,7 +59,8 @@ class CriarMedicoCaseImplTest {
                 entrada.age(),
                 entrada.crm(),
                 entrada.gender(),
-                entrada.specialty()
+                entrada.specialty(),
+                entrada.clinicIds()
         );
 
         when(doctorGateway.existePorCpf(entrada.cpf())).thenReturn(false);

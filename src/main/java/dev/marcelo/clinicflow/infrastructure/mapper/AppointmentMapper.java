@@ -43,7 +43,7 @@ public class AppointmentMapper {
     }
 
     private Doctor referenciaMedico(Long id) {
-        return id == null ? null : new Doctor(id, null, null, null, null, null, null, null, null, null, null);
+        return id == null ? null : new Doctor(id, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private Patient referenciaPaciente(Long id) {
