@@ -8,7 +8,9 @@ import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentEntity;
 import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentRepository;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +41,15 @@ public class AppointmentRepositoryGateway implements AppointmentGateway {
     @Override
     public List<Appointment> listarPorMedico(Long doctorId) {
         return repository.findByDoctorId(doctorId).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Appointment> listarPorMedicoEData(Long doctorId, LocalDate data) {
+        LocalDateTime inicio = data.atStartOfDay();
+        LocalDateTime fim = data.atTime(LocalTime.MAX);
+        return repository.findByDoctorIdAndScheduledAtBetween(doctorId, inicio, fim).stream()
                 .map(mapper::toDomain)
                 .toList();
     }
