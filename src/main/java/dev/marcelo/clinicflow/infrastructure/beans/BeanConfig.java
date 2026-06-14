@@ -140,8 +140,10 @@ public class BeanConfig {
 
     @Bean
     public AgendarConsultaCase agendarConsulta(AppointmentGateway appointmentGateway, ClinicGateway clinicGateway,
-                                               DoctorGateway doctorGateway, PatientGateway patientGateway) {
-        return new AgendarConsultaCaseImpl(appointmentGateway, clinicGateway, doctorGateway, patientGateway);
+                                               DoctorGateway doctorGateway, PatientGateway patientGateway,
+                                               DoctorScheduleGateway doctorScheduleGateway) {
+        return new AgendarConsultaCaseImpl(appointmentGateway, clinicGateway, doctorGateway, patientGateway,
+                doctorScheduleGateway);
     }
 
     @Bean
