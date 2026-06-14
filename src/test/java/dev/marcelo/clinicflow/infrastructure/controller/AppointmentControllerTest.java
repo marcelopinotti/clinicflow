@@ -48,7 +48,7 @@ class AppointmentControllerTest {
     private static final LocalDateTime QUANDO = LocalDateTime.of(2026, 6, 15, 9, 0);
 
     private static final String AGENDAR_JSON =
-            "{\"clinicId\":1,\"doctorId\":2,\"patientId\":3,\"scheduledAt\":\"2026-06-15T09:00:00\"}";
+            "{\"clinicId\":1,\"doctorId\":2,\"patientId\":3,\"scheduledAt\":\"2026-06-15 09:00:00\"}";
 
     @Autowired
     private MockMvc mockMvc;
@@ -159,7 +159,7 @@ class AppointmentControllerTest {
 
         mockMvc.perform(patch("/api/v1/consultas/10/reagendar")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"scheduledAt\":\"2026-06-16T10:00:00\"}"))
+                        .content("{\"scheduledAt\":\"2026-06-16 10:00:00\"}"))
                 .andExpect(status().isOk());
 
         verify(reagendarConsultaCase).execute(10L, nova);

@@ -3,6 +3,7 @@ package dev.marcelo.clinicflow.core.usecases.appointment;
 import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.core.entities.Clinic;
 import dev.marcelo.clinicflow.core.entities.Doctor;
+import dev.marcelo.clinicflow.core.entities.DoctorSchedule;
 import dev.marcelo.clinicflow.core.entities.Patient;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
 import dev.marcelo.clinicflow.core.enums.ClinicStatus;
@@ -10,12 +11,14 @@ import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
 import dev.marcelo.clinicflow.core.enums.Gender;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
-import dev.marcelo.clinicflow.core.exceptions.DoctorScheduleConflictException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorTimeSlotTakenException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentDateException;
+import dev.marcelo.clinicflow.core.exceptions.OutsideDoctorScheduleException;
 import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
 import dev.marcelo.clinicflow.core.gateway.ClinicGateway;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
+import dev.marcelo.clinicflow.core.gateway.DoctorScheduleGateway;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +27,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -46,10 +54,14 @@ class AgendarConsultaCaseImplTest {
     private DoctorGateway doctorGateway;
     @Mock
     private PatientGateway patientGateway;
+    @Mock
+    private DoctorScheduleGateway scheduleGateway;
 
     @InjectMocks
     private AgendarConsultaCaseImpl agendarConsultaCase;
 
+    // Próxima segunda-feira (sempre no futuro) usada como dia coberto pela janela do médico.
+    private final LocalDate proximaSegunda = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
     private final LocalDateTime futuro = LocalDateTime.now().plusDays(1);
 
     private Clinic clinica() {
@@ -77,16 +89,27 @@ class AgendarConsultaCaseImplTest {
         );
     }
 
-    @Test
-    void deveAgendarConsultaComStatusAgendada() {
+    // Janela seg 09:00–12:00, slots de 30min → 09:00, 09:30, ..., 11:30.
+    private DoctorSchedule janelaSegunda() {
+        return new DoctorSchedule(1L, 20L, DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
+    }
+
+    private void stubEntidadesExistentes() {
         when(clinicGateway.buscarClinica(10L)).thenReturn(Optional.of(clinica()));
         when(doctorGateway.buscarDoutor(20L)).thenReturn(Optional.of(medico()));
         when(patientGateway.buscarPaciente(30L)).thenReturn(Optional.of(paciente()));
-        when(appointmentGateway.existeConflitoDeHorario(20L, futuro)).thenReturn(false);
+    }
+
+    @Test
+    void deveAgendarConsultaComStatusAgendadaQuandoSlotValidoELivre() {
+        LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
+        stubEntidadesExistentes();
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+        when(appointmentGateway.listarPorMedicoEData(20L, proximaSegunda)).thenReturn(List.of());
         when(appointmentGateway.salvar(any(Appointment.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Appointment resultado = agendarConsultaCase.execute(requisicao(futuro));
+        Appointment resultado = agendarConsultaCase.execute(requisicao(slotValido));
 
         ArgumentCaptor<Appointment> captor = ArgumentCaptor.forClass(Appointment.class);
         verify(appointmentGateway).salvar(captor.capture());
@@ -130,9 +153,7 @@ class AgendarConsultaCaseImplTest {
 
     @Test
     void deveLancarErroQuandoDataNoPassado() {
-        when(clinicGateway.buscarClinica(10L)).thenReturn(Optional.of(clinica()));
-        when(doctorGateway.buscarDoutor(20L)).thenReturn(Optional.of(medico()));
-        when(patientGateway.buscarPaciente(30L)).thenReturn(Optional.of(paciente()));
+        stubEntidadesExistentes();
 
         assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(LocalDateTime.now().minusDays(1))))
                 .isInstanceOf(InvalidAppointmentDateException.class);
@@ -141,14 +162,40 @@ class AgendarConsultaCaseImplTest {
     }
 
     @Test
-    void deveLancarConflitoQuandoMedicoOcupadoNoMesmoHorario() {
-        when(clinicGateway.buscarClinica(10L)).thenReturn(Optional.of(clinica()));
-        when(doctorGateway.buscarDoutor(20L)).thenReturn(Optional.of(medico()));
-        when(patientGateway.buscarPaciente(30L)).thenReturn(Optional.of(paciente()));
-        when(appointmentGateway.existeConflitoDeHorario(20L, futuro)).thenReturn(true);
+    void deveLancarForaDaAgendaQuandoMedicoNaoAtendeNoDia() {
+        LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
+        stubEntidadesExistentes();
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(futuro)))
-                .isInstanceOf(DoctorScheduleConflictException.class);
+        assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(slotValido)))
+                .isInstanceOf(OutsideDoctorScheduleException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveLancarForaDaAgendaQuandoHorarioForaDoGridDeSlots() {
+        LocalDateTime foraDoGrid = proximaSegunda.atTime(9, 15);
+        stubEntidadesExistentes();
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+
+        assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(foraDoGrid)))
+                .isInstanceOf(OutsideDoctorScheduleException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveLancarSlotOcupadoQuandoJaExisteConsultaAtivaNoHorario() {
+        LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
+        stubEntidadesExistentes();
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+        Appointment existente = new Appointment(99L, clinica(), medico(), paciente(),
+                slotValido, AppointmentStatus.AGENDADA);
+        when(appointmentGateway.listarPorMedicoEData(20L, proximaSegunda)).thenReturn(List.of(existente));
+
+        assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(slotValido)))
+                .isInstanceOf(DoctorTimeSlotTakenException.class);
 
         verify(appointmentGateway, never()).salvar(any());
     }
