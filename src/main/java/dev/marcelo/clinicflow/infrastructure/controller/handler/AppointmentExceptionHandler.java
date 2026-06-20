@@ -2,6 +2,7 @@ package dev.marcelo.clinicflow.infrastructure.controller.handler;
 
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotReschedulableException;
+import dev.marcelo.clinicflow.core.exceptions.AppointmentNotYetOccurredException;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorScheduleConflictException;
@@ -31,7 +32,8 @@ public class AppointmentExceptionHandler {
     @ExceptionHandler({
             DoctorScheduleConflictException.class,
             InvalidAppointmentStatusTransitionException.class,
-            AppointmentNotReschedulableException.class
+            AppointmentNotReschedulableException.class,
+            AppointmentNotYetOccurredException.class
     })
     public ProblemDetail handleConflict(RuntimeException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());

@@ -2,6 +2,7 @@ package dev.marcelo.clinicflow.core.usecases.appointment;
 
 import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
+import dev.marcelo.clinicflow.core.exceptions.AppointmentNotYetOccurredException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentStatusTransitionException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
 import org.junit.jupiter.api.Test;
@@ -29,13 +30,14 @@ class RealizarConsultaCaseImplTest {
     @InjectMocks
     private RealizarConsultaCaseImpl realizarConsultaCase;
 
-    private Appointment comStatus(AppointmentStatus status) {
-        return new Appointment(1L, null, null, null, LocalDateTime.now().plusDays(1), status);
+    private Appointment comStatusEHorario(AppointmentStatus status, LocalDateTime scheduledAt) {
+        return new Appointment(1L, null, null, null, scheduledAt, status);
     }
 
     @Test
-    void deveRealizarConsultaConfirmada() {
-        when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(comStatus(AppointmentStatus.CONFIRMADA)));
+    void deveRealizarConsultaConfirmadaComHorarioJaPassado() {
+        when(appointmentGateway.buscarPorId(1L))
+                .thenReturn(Optional.of(comStatusEHorario(AppointmentStatus.CONFIRMADA, LocalDateTime.now().minusHours(1))));
         when(appointmentGateway.salvar(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
 
         Appointment resultado = realizarConsultaCase.execute(1L);
@@ -45,10 +47,22 @@ class RealizarConsultaCaseImplTest {
 
     @Test
     void deveLancarConflitoAoRealizarConsultaApenasAgendada() {
-        when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(comStatus(AppointmentStatus.AGENDADA)));
+        when(appointmentGateway.buscarPorId(1L))
+                .thenReturn(Optional.of(comStatusEHorario(AppointmentStatus.AGENDADA, LocalDateTime.now().minusHours(1))));
 
         assertThatThrownBy(() -> realizarConsultaCase.execute(1L))
                 .isInstanceOf(InvalidAppointmentStatusTransitionException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveLancarConflitoAoRealizarConsultaComHorarioFuturo() {
+        when(appointmentGateway.buscarPorId(1L))
+                .thenReturn(Optional.of(comStatusEHorario(AppointmentStatus.CONFIRMADA, LocalDateTime.now().plusHours(1))));
+
+        assertThatThrownBy(() -> realizarConsultaCase.execute(1L))
+                .isInstanceOf(AppointmentNotYetOccurredException.class);
 
         verify(appointmentGateway, never()).salvar(any());
     }
