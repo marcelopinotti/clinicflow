@@ -3,6 +3,7 @@ package dev.marcelo.clinicflow.infrastructure.controller.handler;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotReschedulableException;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorNotAffiliatedToClinicException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorScheduleConflictException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentDateException;
@@ -30,6 +31,7 @@ public class AppointmentExceptionHandler {
 
     @ExceptionHandler({
             DoctorScheduleConflictException.class,
+            DoctorNotAffiliatedToClinicException.class,
             InvalidAppointmentStatusTransitionException.class,
             AppointmentNotReschedulableException.class
     })

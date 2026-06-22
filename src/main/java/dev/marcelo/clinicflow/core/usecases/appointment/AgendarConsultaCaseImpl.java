@@ -6,6 +6,7 @@ import dev.marcelo.clinicflow.core.entities.Doctor;
 import dev.marcelo.clinicflow.core.entities.Patient;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorNotAffiliatedToClinicException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentDateException;
 import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
@@ -43,6 +44,10 @@ public class AgendarConsultaCaseImpl implements AgendarConsultaCase {
                 .orElseThrow(() -> new DoctorNotFoundException(appointment.doctor().id()));
         Patient patient = patientGateway.buscarPaciente(appointment.patient().id())
                 .orElseThrow(() -> new PatientNotFoundException(appointment.patient().id()));
+
+        if (doctor.clinicIds() == null || !doctor.clinicIds().contains(clinic.id())) {
+            throw new DoctorNotAffiliatedToClinicException(doctor.id(), clinic.id());
+        }
 
         LocalDateTime scheduledAt = appointment.scheduledAt();
         if (scheduledAt == null || !scheduledAt.isAfter(LocalDateTime.now())) {

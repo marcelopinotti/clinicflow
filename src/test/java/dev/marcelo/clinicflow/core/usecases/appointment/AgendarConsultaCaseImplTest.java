@@ -10,6 +10,7 @@ import dev.marcelo.clinicflow.core.enums.ClinicStatus;
 import dev.marcelo.clinicflow.core.enums.DoctorSpecialty;
 import dev.marcelo.clinicflow.core.enums.Gender;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorNotAffiliatedToClinicException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorTimeSlotTakenException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentDateException;
@@ -78,7 +79,12 @@ class AgendarConsultaCaseImplTest {
 
     private Doctor medico() {
         return new Doctor(20L, "Ana", "Lima", "111", "ana@x.com", "Rua B", "1198", 40, "CRM1",
-                Gender.values()[0], DoctorSpecialty.values()[0], Set.of());
+                Gender.values()[0], DoctorSpecialty.values()[0], Set.of(10L));
+    }
+
+    private Doctor medicoSemVinculo() {
+        return new Doctor(20L, "Ana", "Lima", "111", "ana@x.com", "Rua B", "1198", 40, "CRM1",
+                Gender.values()[0], DoctorSpecialty.values()[0], Set.of(99L));
     }
 
     private Patient paciente() {
@@ -155,6 +161,32 @@ class AgendarConsultaCaseImplTest {
                 .isInstanceOf(PatientNotFoundException.class);
 
         verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveLancarConflitoQuandoMedicoNaoAtendeNaClinicaInformada() {
+        when(clinicGateway.buscarClinica(10L)).thenReturn(Optional.of(clinica()));
+        when(doctorGateway.buscarDoutor(20L)).thenReturn(Optional.of(medicoSemVinculo()));
+        when(patientGateway.buscarPaciente(30L)).thenReturn(Optional.of(paciente()));
+
+        assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(futuro)))
+                .isInstanceOf(DoctorNotAffiliatedToClinicException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveAgendarQuandoMedicoVinculadoAClinica() {
+        LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
+        stubEntidadesExistentes();
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+        when(appointmentGateway.salvar(any(Appointment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Appointment resultado = agendarConsultaCase.execute(requisicao(slotValido));
+
+        assertThat(resultado.status()).isEqualTo(AppointmentStatus.AGENDADA);
+        verify(appointmentGateway).salvar(any(Appointment.class));
     }
 
     @Test
