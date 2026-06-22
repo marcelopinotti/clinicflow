@@ -62,7 +62,7 @@ public class AppointmentRepositoryGateway implements AppointmentGateway {
     }
 
     @Override
-    public boolean existeConflitoDeHorario(Long doctorId, LocalDateTime scheduledAt) {
-        return repository.existsByDoctorIdAndScheduledAtAndStatusNot(doctorId, scheduledAt, AppointmentStatus.CANCELADA);
+    public boolean existeConflitoNoIntervalo(Long doctorId, LocalDateTime inicio, LocalDateTime fim, Long ignorarConsultaId) {
+        return repository.existeConflitoNoIntervalo(doctorId, AppointmentStatus.CANCELADA, inicio, fim, ignorarConsultaId);
     }
 }
