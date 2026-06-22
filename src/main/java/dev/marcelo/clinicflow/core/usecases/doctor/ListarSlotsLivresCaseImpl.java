@@ -43,36 +43,50 @@ public class ListarSlotsLivresCaseImpl implements ListarSlotsLivresCase {
             return List.of();
         }
 
-        Set<LocalTime> ocupados = horariosOcupados(doctorId, data);
+        List<Intervalo> ocupados = intervalosOcupados(doctorId, data, janelas);
 
         TreeSet<LocalTime> livres = new TreeSet<>();
         for (DoctorSchedule janela : janelas) {
-            for (LocalTime slot : gerarSlots(janela)) {
-                if (!ocupados.contains(slot)) {
-                    livres.add(slot);
+            int slotMinutes = janela.slotMinutes();
+            for (LocalTime inicio : janela.slots()) {
+                Intervalo slot = new Intervalo(inicio, inicio.plusMinutes(slotMinutes));
+                boolean coberto = ocupados.stream().anyMatch(slot::intersecta);
+                if (!coberto) {
+                    livres.add(inicio);
                 }
             }
         }
         return List.copyOf(livres);
     }
 
-    private Set<LocalTime> horariosOcupados(Long doctorId, LocalDate data) {
-        TreeSet<LocalTime> ocupados = new TreeSet<>();
+    private List<Intervalo> intervalosOcupados(Long doctorId, LocalDate data, List<DoctorSchedule> janelas) {
+        List<Intervalo> intervalos = new ArrayList<>();
         for (Appointment consulta : appointmentGateway.listarPorMedicoEData(doctorId, data)) {
-            if (STATUS_ATIVOS.contains(consulta.status())) {
-                ocupados.add(consulta.scheduledAt().toLocalTime());
+            if (!STATUS_ATIVOS.contains(consulta.status())) {
+                continue;
             }
+            LocalTime inicio = consulta.scheduledAt().toLocalTime();
+            int duracao = duracaoMinutos(janelas, inicio);
+            intervalos.add(new Intervalo(inicio, inicio.plusMinutes(duracao)));
         }
-        return ocupados;
+        return intervalos;
     }
 
-    private List<LocalTime> gerarSlots(DoctorSchedule janela) {
-        List<LocalTime> slots = new ArrayList<>();
-        LocalTime slot = janela.startTime();
-        while (!slot.plusMinutes(janela.slotMinutes()).isAfter(janela.endTime())) {
-            slots.add(slot);
-            slot = slot.plusMinutes(janela.slotMinutes());
+    private int duracaoMinutos(List<DoctorSchedule> janelas, LocalTime inicio) {
+        return janelas.stream()
+                .filter(janela -> janela.cobre(inicio))
+                .map(DoctorSchedule::slotMinutes)
+                .findFirst()
+                .orElseGet(() -> janelas.stream()
+                        .map(DoctorSchedule::slotMinutes)
+                        .min(Integer::compareTo)
+                        .orElse(0));
+    }
+
+
+    private record Intervalo(LocalTime inicio, LocalTime fim) {
+        boolean intersecta(Intervalo outro) {
+            return inicio.isBefore(outro.fim) && outro.inicio.isBefore(fim);
         }
-        return slots;
     }
 }
