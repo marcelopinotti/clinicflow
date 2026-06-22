@@ -3,8 +3,11 @@ package dev.marcelo.clinicflow.core.usecases.appointment;
 import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotFoundException;
+import dev.marcelo.clinicflow.core.exceptions.AppointmentNotYetOccurredException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentStatusTransitionException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
+
+import java.time.LocalDateTime;
 
 public class RegistrarNoShowCaseImpl implements RegistrarNoShowCase {
 
@@ -21,6 +24,10 @@ public class RegistrarNoShowCaseImpl implements RegistrarNoShowCase {
 
         if (!appointment.status().canTransitionTo(AppointmentStatus.NO_SHOW)) {
             throw new InvalidAppointmentStatusTransitionException(appointment.status(), AppointmentStatus.NO_SHOW);
+        }
+
+        if (appointment.scheduledAt().isAfter(LocalDateTime.now())) {
+            throw new AppointmentNotYetOccurredException(AppointmentStatus.NO_SHOW, appointment.scheduledAt());
         }
 
         Appointment noShow = new Appointment(
