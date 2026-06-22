@@ -104,6 +104,35 @@ class ListarSlotsLivresCaseImplTest {
     }
 
     @Test
+    void deveRemoverTodosOsSlotsQueIntersectamConsultaForaDoGrid() {
+        when(doctorGateway.buscarDoutor(DOCTOR_ID)).thenReturn(Optional.of(medico()));
+        when(scheduleGateway.listarPorMedicoEDia(DOCTOR_ID, DayOfWeek.MONDAY))
+                .thenReturn(List.of(janela(LocalTime.of(8, 0), LocalTime.of(10, 0), 30)));
+        // Consulta às 08:15 (fora do grid), 30min → cobre [08:15, 08:45), intersecta 08:00 e 08:30.
+        when(appointmentGateway.listarPorMedicoEData(DOCTOR_ID, DATA))
+                .thenReturn(List.of(consultaAs(LocalTime.of(8, 15), AppointmentStatus.AGENDADA)));
+
+        List<LocalTime> livres = listarSlotsLivresCase.execute(DOCTOR_ID, DATA);
+
+        assertThat(livres).doesNotContain(LocalTime.of(8, 0), LocalTime.of(8, 30));
+        assertThat(livres).containsExactly(LocalTime.of(9, 0), LocalTime.of(9, 30));
+    }
+
+    @Test
+    void naoDeveRemoverSlotQuandoConsultaTerminaExatamenteNoInicioDele() {
+        when(doctorGateway.buscarDoutor(DOCTOR_ID)).thenReturn(Optional.of(medico()));
+        when(scheduleGateway.listarPorMedicoEDia(DOCTOR_ID, DayOfWeek.MONDAY))
+                .thenReturn(List.of(janela(LocalTime.of(8, 30), LocalTime.of(10, 0), 30)));
+        // Consulta às 08:00, 30min → cobre [08:00, 08:30); o slot 08:30 começa quando ela termina.
+        when(appointmentGateway.listarPorMedicoEData(DOCTOR_ID, DATA))
+                .thenReturn(List.of(consultaAs(LocalTime.of(8, 0), AppointmentStatus.AGENDADA)));
+
+        List<LocalTime> livres = listarSlotsLivresCase.execute(DOCTOR_ID, DATA);
+
+        assertThat(livres).contains(LocalTime.of(8, 30));
+    }
+
+    @Test
     void deveIgnorarConsultasComStatusInativoAoOcuparSlot() {
         when(doctorGateway.buscarDoutor(DOCTOR_ID)).thenReturn(Optional.of(medico()));
         when(scheduleGateway.listarPorMedicoEDia(DOCTOR_ID, DayOfWeek.MONDAY))

@@ -20,10 +20,11 @@ import dev.marcelo.clinicflow.core.gateway.ClinicGateway;
 import dev.marcelo.clinicflow.core.gateway.DoctorGateway;
 import dev.marcelo.clinicflow.core.gateway.DoctorScheduleGateway;
 import dev.marcelo.clinicflow.core.gateway.PatientGateway;
+import dev.marcelo.clinicflow.core.services.AgendaValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -57,8 +58,14 @@ class AgendarConsultaCaseImplTest {
     @Mock
     private DoctorScheduleGateway scheduleGateway;
 
-    @InjectMocks
     private AgendarConsultaCaseImpl agendarConsultaCase;
+
+    @BeforeEach
+    void setUp() {
+        AgendaValidator agendaValidator = new AgendaValidator(appointmentGateway, scheduleGateway);
+        agendarConsultaCase = new AgendarConsultaCaseImpl(appointmentGateway, clinicGateway, doctorGateway,
+                patientGateway, agendaValidator);
+    }
 
     // Próxima segunda-feira (sempre no futuro) usada como dia coberto pela janela do médico.
     private final LocalDate proximaSegunda = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
@@ -105,7 +112,6 @@ class AgendarConsultaCaseImplTest {
         LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
         stubEntidadesExistentes();
         when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
-        when(appointmentGateway.listarPorMedicoEData(20L, proximaSegunda)).thenReturn(List.of());
         when(appointmentGateway.salvar(any(Appointment.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -190,9 +196,9 @@ class AgendarConsultaCaseImplTest {
         LocalDateTime slotValido = proximaSegunda.atTime(9, 0);
         stubEntidadesExistentes();
         when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
-        Appointment existente = new Appointment(99L, clinica(), medico(), paciente(),
-                slotValido, AppointmentStatus.AGENDADA);
-        when(appointmentGateway.listarPorMedicoEData(20L, proximaSegunda)).thenReturn(List.of(existente));
+        // slot de 30min em 09:00 → intervalo aberto verificado (08:30, 09:30); nova consulta não se ignora
+        when(appointmentGateway.existeConflitoNoIntervalo(
+                20L, proximaSegunda.atTime(8, 30), proximaSegunda.atTime(9, 30), null)).thenReturn(true);
 
         assertThatThrownBy(() -> agendarConsultaCase.execute(requisicao(slotValido)))
                 .isInstanceOf(DoctorTimeSlotTakenException.class);
