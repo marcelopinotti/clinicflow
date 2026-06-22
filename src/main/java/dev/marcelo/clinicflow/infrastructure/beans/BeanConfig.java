@@ -53,6 +53,7 @@ import dev.marcelo.clinicflow.core.usecases.patient.DeletarPacienteCase;
 import dev.marcelo.clinicflow.core.usecases.patient.DeletarPacienteCaseImpl;
 import dev.marcelo.clinicflow.core.usecases.patient.ListarPacientesCase;
 import dev.marcelo.clinicflow.core.usecases.patient.ListarPacientesCaseImpl;
+import dev.marcelo.clinicflow.core.services.AgendaValidator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -139,11 +140,17 @@ public class BeanConfig {
     }
 
     @Bean
+    public AgendaValidator agendaValidator(AppointmentGateway appointmentGateway,
+                                           DoctorScheduleGateway doctorScheduleGateway) {
+        return new AgendaValidator(appointmentGateway, doctorScheduleGateway);
+    }
+
+    @Bean
     public AgendarConsultaCase agendarConsulta(AppointmentGateway appointmentGateway, ClinicGateway clinicGateway,
                                                DoctorGateway doctorGateway, PatientGateway patientGateway,
-                                               DoctorScheduleGateway doctorScheduleGateway) {
+                                               AgendaValidator agendaValidator) {
         return new AgendarConsultaCaseImpl(appointmentGateway, clinicGateway, doctorGateway, patientGateway,
-                doctorScheduleGateway);
+                agendaValidator);
     }
 
     @Bean
@@ -157,8 +164,9 @@ public class BeanConfig {
     }
 
     @Bean
-    public ReagendarConsultaCase reagendarConsulta(AppointmentGateway appointmentGateway) {
-        return new ReagendarConsultaCaseImpl(appointmentGateway);
+    public ReagendarConsultaCase reagendarConsulta(AppointmentGateway appointmentGateway,
+                                                   AgendaValidator agendaValidator) {
+        return new ReagendarConsultaCaseImpl(appointmentGateway, agendaValidator);
     }
 
     @Bean
