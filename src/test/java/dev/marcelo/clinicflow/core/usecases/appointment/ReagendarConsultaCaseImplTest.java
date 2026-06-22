@@ -2,20 +2,29 @@ package dev.marcelo.clinicflow.core.usecases.appointment;
 
 import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.core.entities.Doctor;
+import dev.marcelo.clinicflow.core.entities.DoctorSchedule;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.AppointmentNotReschedulableException;
-import dev.marcelo.clinicflow.core.exceptions.DoctorScheduleConflictException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorTimeSlotTakenException;
 import dev.marcelo.clinicflow.core.exceptions.InvalidAppointmentDateException;
+import dev.marcelo.clinicflow.core.exceptions.OutsideDoctorScheduleException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
+import dev.marcelo.clinicflow.core.gateway.DoctorScheduleGateway;
+import dev.marcelo.clinicflow.core.services.AgendaValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,12 +39,23 @@ class ReagendarConsultaCaseImplTest {
 
     @Mock
     private AppointmentGateway appointmentGateway;
+    @Mock
+    private DoctorScheduleGateway scheduleGateway;
 
-    @InjectMocks
     private ReagendarConsultaCaseImpl reagendarConsultaCase;
 
-    private final LocalDateTime horaAtual = LocalDateTime.now().plusDays(1);
-    private final LocalDateTime novaData = LocalDateTime.now().plusDays(2);
+    // Próxima segunda-feira (sempre no futuro) usada como dia coberto pela janela do médico.
+    private final LocalDate proximaSegunda = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    // Horário atual da consulta: slot válido na agenda (segunda 09:00).
+    private final LocalDateTime horaAtual = proximaSegunda.atTime(9, 0);
+    // Novo horário desejado: outro slot válido (segunda 10:00).
+    private final LocalDateTime novaData = proximaSegunda.atTime(10, 0);
+
+    @BeforeEach
+    void setUp() {
+        AgendaValidator agendaValidator = new AgendaValidator(appointmentGateway, scheduleGateway);
+        reagendarConsultaCase = new ReagendarConsultaCaseImpl(appointmentGateway, agendaValidator);
+    }
 
     private Doctor medico() {
         return new Doctor(20L, null, null, null, null, null, null, null, null, null, null, null);
@@ -45,10 +65,15 @@ class ReagendarConsultaCaseImplTest {
         return new Appointment(1L, null, medico(), null, horaAtual, status);
     }
 
+    // Janela seg 09:00–12:00, slots de 30min → 09:00, 09:30, ..., 11:30.
+    private DoctorSchedule janelaSegunda() {
+        return new DoctorSchedule(1L, 20L, DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
+    }
+
     @Test
-    void deveReagendarPreservandoStatus() {
+    void deveReagendarPreservandoStatusQuandoSlotValidoELivre() {
         when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(consulta(AppointmentStatus.CONFIRMADA)));
-        when(appointmentGateway.existeConflitoDeHorario(20L, novaData)).thenReturn(false);
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
         when(appointmentGateway.salvar(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
 
         Appointment resultado = reagendarConsultaCase.execute(1L, novaData);
@@ -92,24 +117,50 @@ class ReagendarConsultaCaseImplTest {
     }
 
     @Test
-    void deveLancarConflitoQuandoMedicoOcupadoNoNovoHorario() {
+    void deveLancarForaDaAgendaQuandoMedicoNaoAtendeNaJanela() {
         when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(consulta(AppointmentStatus.AGENDADA)));
-        when(appointmentGateway.existeConflitoDeHorario(20L, novaData)).thenReturn(true);
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of());
 
         assertThatThrownBy(() -> reagendarConsultaCase.execute(1L, novaData))
-                .isInstanceOf(DoctorScheduleConflictException.class);
+                .isInstanceOf(OutsideDoctorScheduleException.class);
 
         verify(appointmentGateway, never()).salvar(any());
     }
 
     @Test
-    void naoDeveVerificarConflitoQuandoHorarioNaoMuda() {
+    void deveLancarForaDaAgendaQuandoHorarioForaDoGridDeSlots() {
+        LocalDateTime foraDoGrid = proximaSegunda.atTime(10, 15);
+        when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(consulta(AppointmentStatus.AGENDADA)));
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+
+        assertThatThrownBy(() -> reagendarConsultaCase.execute(1L, foraDoGrid))
+                .isInstanceOf(OutsideDoctorScheduleException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void deveLancarSlotOcupadoQuandoOutraConsultaAtivaNoNovoHorario() {
+        when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(consulta(AppointmentStatus.AGENDADA)));
+        when(scheduleGateway.listarPorMedicoEDia(20L, DayOfWeek.MONDAY)).thenReturn(List.of(janelaSegunda()));
+        // slot de 30min em 10:00 → intervalo aberto (09:30, 10:30); ignora a própria consulta (id 1)
+        when(appointmentGateway.existeConflitoNoIntervalo(
+                20L, proximaSegunda.atTime(9, 30), proximaSegunda.atTime(10, 30), 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> reagendarConsultaCase.execute(1L, novaData))
+                .isInstanceOf(DoctorTimeSlotTakenException.class);
+
+        verify(appointmentGateway, never()).salvar(any());
+    }
+
+    @Test
+    void naoDeveValidarAgendaQuandoHorarioNaoMuda() {
         when(appointmentGateway.buscarPorId(1L)).thenReturn(Optional.of(consulta(AppointmentStatus.AGENDADA)));
         when(appointmentGateway.salvar(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
 
         Appointment resultado = reagendarConsultaCase.execute(1L, horaAtual);
 
         assertThat(resultado.scheduledAt()).isEqualTo(horaAtual);
-        verify(appointmentGateway, never()).existeConflitoDeHorario(any(), any());
+        verify(scheduleGateway, never()).listarPorMedicoEDia(any(), any());
     }
 }

@@ -19,5 +19,5 @@ public interface AppointmentGateway {
 
     List<Appointment> listarPorPaciente(Long patientId);
 
-    boolean existeConflitoDeHorario(Long doctorId, LocalDateTime scheduledAt);
+    boolean existeConflitoNoIntervalo(Long doctorId, LocalDateTime inicio, LocalDateTime fim, Long ignorarConsultaId);
 }

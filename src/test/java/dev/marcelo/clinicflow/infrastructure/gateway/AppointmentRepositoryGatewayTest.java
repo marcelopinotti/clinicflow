@@ -79,12 +79,13 @@ class AppointmentRepositoryGatewayTest {
     }
 
     @Test
-    void existeConflitoDeHorarioIgnoraConsultasCanceladas() {
-        LocalDateTime horario = LocalDateTime.of(2026, 6, 15, 9, 0);
-        when(repository.existsByDoctorIdAndScheduledAtAndStatusNot(1L, horario, AppointmentStatus.CANCELADA))
+    void existeConflitoNoIntervaloDelegaParaRepositorioIgnorandoCanceladas() {
+        LocalDateTime inicio = LocalDateTime.of(2026, 6, 15, 8, 30);
+        LocalDateTime fim = LocalDateTime.of(2026, 6, 15, 9, 30);
+        when(repository.existeConflitoNoIntervalo(1L, AppointmentStatus.CANCELADA, inicio, fim, 7L))
                 .thenReturn(true);
 
-        assertThat(gateway.existeConflitoDeHorario(1L, horario)).isTrue();
+        assertThat(gateway.existeConflitoNoIntervalo(1L, inicio, fim, 7L)).isTrue();
     }
 
     @Test

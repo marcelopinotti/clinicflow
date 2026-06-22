@@ -17,6 +17,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -75,7 +76,7 @@ class ClinicFlowEndToEndIT extends AbstractIntegrationTest {
                 {"clinicId":%d,"doctorId":%d,"patientId":%d,"scheduledAt":"%s"}
                 """.formatted(clinicId, doctorId, patientId, scheduledAt);
 
-        mockMvc.perform(post("/api/v1/consultas")
+        MvcResult consultaCriada = mockMvc.perform(post("/api/v1/consultas")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(consulta))
                 .andExpect(status().isCreated())
@@ -83,7 +84,9 @@ class ClinicFlowEndToEndIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.clinicId").value((int) clinicId))
                 .andExpect(jsonPath("$.doctorId").value((int) doctorId))
                 .andExpect(jsonPath("$.patientId").value((int) patientId))
-                .andExpect(jsonPath("$.status").value("AGENDADA"));
+                .andExpect(jsonPath("$.status").value("AGENDADA"))
+                .andReturn();
+        long consultaId = idDe(consultaCriada);
 
         // 7) O slot das 09:00 agora está ocupado → restam 5 slots, primeiro 09:30
         mockMvc.perform(get("/api/v1/medicos/{id}/agenda/livres", doctorId)
@@ -91,6 +94,35 @@ class ClinicFlowEndToEndIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(5))
                 .andExpect(jsonPath("$[0].horario").value("09:30:00"));
+
+        // 8) Reagenda a consulta para as 10:00 da mesma segunda (issue #18: reusa a validação de agenda)
+        String reagendar = """
+                {"scheduledAt":"%s"}
+                """.formatted(proximaSegunda.atTime(10, 0).format(DATE_TIME));
+        mockMvc.perform(patch("/api/v1/consultas/{id}/reagendar", consultaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reagendar))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value((int) consultaId))
+                .andExpect(jsonPath("$.status").value("AGENDADA"));
+
+        // 9) Agora o slot livre das 09:00 voltou e o das 10:00 está ocupado → 5 slots, primeiro 09:00
+        mockMvc.perform(get("/api/v1/medicos/{id}/agenda/livres", doctorId)
+                        .param("data", proximaSegunda.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$[0].horario").value("09:00:00"))
+                .andExpect(jsonPath("$[*].horario", Matchers.not(Matchers.hasItem("10:00:00"))));
+
+        // 10) Reagendar para fora da agenda do médico (13:00) é rejeitado com 409 (issue #18 fecha o bypass)
+        String foraDaAgenda = """
+                {"scheduledAt":"%s"}
+                """.formatted(proximaSegunda.atTime(13, 0).format(DATE_TIME));
+        mockMvc.perform(patch("/api/v1/consultas/{id}/reagendar", consultaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(foraDaAgenda))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Fora da agenda do médico"));
     }
 
     @Test

@@ -5,6 +5,7 @@ import dev.marcelo.clinicflow.core.exceptions.AppointmentNotReschedulableExcepti
 import dev.marcelo.clinicflow.core.exceptions.ClinicAlreadyExistsException;
 import dev.marcelo.clinicflow.core.exceptions.ClinicNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorAlreadyExistsException;
+import dev.marcelo.clinicflow.core.exceptions.DoctorNotAffiliatedToClinicException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorNotFoundException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorScheduleConflictException;
 import dev.marcelo.clinicflow.core.exceptions.DoctorTimeSlotTakenException;
@@ -44,6 +45,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             DoctorScheduleConflictException.class,
             DoctorTimeSlotTakenException.class,
+            DoctorNotAffiliatedToClinicException.class,
             InvalidAppointmentStatusTransitionException.class,
             AppointmentNotReschedulableException.class
     })
