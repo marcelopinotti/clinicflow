@@ -1,35 +1,47 @@
+<div align="center">
+
 # 🏥 ClinicFlow
 
-API REST para gestão de clínicas médicas, construída com **Java 17**, **Spring Boot 4** e **Clean Architecture**.
+**API REST para gestão de clínicas médicas, médicos, pacientes e consultas — construída com Clean Architecture.**
 
-O ClinicFlow centraliza o gerenciamento de **clínicas**, **médicos**, **pacientes** e **consultas**, resolvendo o problema de controle descentralizado de cadastros e agendamentos em redes de clínicas — incluindo o vínculo N:N entre médicos e clínicas e o ciclo de vida completo de uma consulta (agendada → confirmada → realizada / cancelada / no-show).
+[![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Flyway](https://img.shields.io/badge/Flyway-migrations-CC0200?logo=flyway&logoColor=white)](https://flywaydb.org/)
+[![Tests](https://img.shields.io/badge/tests-113%20unit%20%2B%205%20integration-success)](#testes)
+
+</div>
+
+O **ClinicFlow** centraliza o gerenciamento de uma rede de clínicas: cadastro de **clínicas**, **médicos** (com vínculo N:N a clínicas), **pacientes** e o **ciclo de vida completo de uma consulta** — do agendamento à realização, cancelamento ou no-show. As regras de negócio não triviais (agenda real do médico, conflito por slot, integridade sob concorrência) vivem isoladas de qualquer framework, seguindo **Clean Architecture** e **SOLID**.
 
 > [!NOTE]
-> O domínio de **consultas (appointments)** já possui entidades, contratos de use cases e estrutura de persistência criados, porém suas implementações estão **em desenvolvimento** (ver [Roadmap](#-roadmap)).
+> Este é um projeto de **estudo/portfólio**. Autenticação, observabilidade e paginação ficaram **intencionalmente fora de escopo** — veja [Escopo & decisões](#escopo--decisões). O núcleo do domínio está completo e coberto por testes.
 
----
+## Funcionalidades
 
-## 📐 Arquitetura
+- **Clínicas** — cadastro com CNPJ único e especialidades normalizadas.
+- **Médicos** — CRUD completo, vínculo **N:N com clínicas** e validação de clínicas inexistentes.
+- **Pacientes** — CRUD completo, com `404` tipado quando não encontrado.
+- **Agenda do médico** — janelas de atendimento por dia da semana (`DoctorSchedule`) e cálculo de **slots livres** por data.
+- **Consultas** — agendar, confirmar, reagendar, cancelar, realizar e registrar no-show, com:
+  - validação da **agenda real** do médico (dia, janela e duração do slot);
+  - conflito por **slot** (intervalo), não por instante exato;
+  - validação do **vínculo médico↔clínica** e anti **double-booking** do paciente;
+  - bloqueio de `realizar`/`no-show` **antes do horário** da consulta;
+  - **unicidade do slot garantida no banco** via índice único parcial (proteção contra corrida/TOCTOU).
+- **Transversal** — erros padronizados como `ProblemDetail` (RFC 7807) e schema versionado com Flyway (`ddl-auto: validate`).
 
-O projeto segue **Clean Architecture**, separando o código em duas camadas principais com a regra de dependência apontando sempre para o domínio:
+## Arquitetura
 
-- **`core`** — o coração da aplicação. Não possui **nenhuma dependência de framework** (sem Spring, sem JPA). Contém:
-  - **Entities**: modelos de domínio imutáveis (`record`s Java) — `Clinic`, `Doctor`, `Patient`, `Appointment`;
-  - **Use Cases**: regras de negócio, cada um com **interface + implementação** (ex.: `CriarClinicaCase` / `CriarClinicaCaseImpl`);
-  - **Gateways (Ports)**: interfaces que definem os contratos de persistência (`ClinicGateway`, `DoctorGateway`, `PatientGateway`, `AppointmentGateway`);
-  - **Exceptions**: exceções de negócio (`ClinicAlreadyExistsException`, `PatientNotFoundException`);
-  - **Enums**: `AppointmentStatus`, `ClinicStatus`, `DoctorSpecialty`, `Gender`.
+O código é dividido em duas camadas, com a **regra de dependência sempre apontando para o domínio**:
 
-- **`infrastructure`** — detalhes de implementação (Adapters):
-  - **Controllers**: pontos de entrada REST (`ClinicController`, `DoctorController`, `PatientController`);
-  - **Gateways (Adapters)**: implementações dos ports do core usando Spring Data JPA (`ClinicRepositoryGateway`, etc.);
-  - **Persistence**: entidades JPA (`@Entity`) e repositórios (`JpaRepository`) — separadas das entidades de domínio;
-  - **Mappers**: conversão entre DTO ↔ domínio (`ClinicMapper`) e domínio ↔ JPA (`ClinicEntityMapper`);
-  - **DTOs**: `record`s de request/response da API;
-  - **Beans**: `BeanConfig` instancia manualmente os use cases como `@Bean`, injetando os gateways — é aqui que a **Inversão de Dependência** se materializa;
-  - **Handler**: `GlobalExceptionHandler` (`@RestControllerAdvice`) traduz exceções de negócio em respostas HTTP com `ProblemDetail` (RFC 7807).
-
-### Fluxo de dependências
+- **`core`** — o domínio, **sem nenhuma dependência de framework** (sem Spring, sem JPA):
+  - **entities** — modelos imutáveis (`record`): `Clinic`, `Doctor`, `Patient`, `Appointment`, `DoctorSchedule`;
+  - **usecases** — regras de negócio, cada uma com **interface + implementação**;
+  - **gateway (ports)** — contratos de persistência (`ClinicGateway`, `DoctorGateway`, `PatientGateway`, `AppointmentGateway`);
+  - **services** — regras de domínio compartilhadas (`AgendaValidator`);
+  - **exceptions / enums** — exceções de negócio tipadas e enums do domínio.
+- **`infrastructure`** — os detalhes (adapters): controllers REST, implementações JPA dos ports, entidades `@Entity`, mappers, DTOs, `BeanConfig` (wiring) e o `GlobalExceptionHandler`.
 
 ```mermaid
 graph LR
@@ -40,308 +52,318 @@ graph LR
         B[BeanConfig]
     end
     subgraph Core
-        UC[Use Case] --> GW[Gateway Interface]
-        UC --> E[Entities / Records]
+        UC[Use Case] --> GW[Gateway port]
+        UC --> SV[AgendaValidator]
+        UC --> E[Entities / records]
     end
     C --> UC
     G -. implementa .-> GW
     B -. instancia .-> UC
 ```
 
-O `core` **não conhece** a infraestrutura. A infraestrutura **implementa** os contratos do core (`ClinicRepositoryGateway implements ClinicGateway`) e o Spring conecta tudo via `BeanConfig`.
+O `core` **não conhece** a infraestrutura. A infraestrutura **implementa** os ports (`ClinicRepositoryGateway implements ClinicGateway`) e o `BeanConfig` instancia os use cases como `@Bean`, injetando os gateways por construtor — é onde a **Inversão de Dependência** se materializa.
 
-### Fluxo de uma requisição (ex.: criar clínica)
-
-```mermaid
-sequenceDiagram
-    participant Cliente
-    participant ClinicController
-    participant CriarClinicaCaseImpl
-    participant ClinicGateway
-    participant ClinicRepositoryGateway
-    participant PostgreSQL
-
-    Cliente->>ClinicController: POST /api/v1/clinicas/criar
-    ClinicController->>ClinicController: ClinicMapper.toEntity(request)
-    ClinicController->>CriarClinicaCaseImpl: execute(clinic)
-    CriarClinicaCaseImpl->>ClinicGateway: existePorCnpj(cnpj)
-    ClinicGateway->>ClinicRepositoryGateway: (implementação)
-    ClinicRepositoryGateway->>PostgreSQL: existsByCnpj
-    alt CNPJ já existe
-        CriarClinicaCaseImpl-->>Cliente: 409 ClinicAlreadyExistsException
-    else CNPJ disponível
-        CriarClinicaCaseImpl->>ClinicGateway: criarClinica(clinic)
-        ClinicRepositoryGateway->>PostgreSQL: INSERT
-        ClinicController-->>Cliente: 201 Created + ClinicResponse
-    end
-```
-
-### SOLID aplicado
-
-| Princípio | Onde aparece |
+| Princípio SOLID | Onde aparece |
 |---|---|
-| **S** — Single Responsibility | Cada use case faz uma única operação (`CriarMedicoCaseImpl`, `DeletarPacienteCaseImpl`...) |
-| **O** — Open/Closed | Novos comportamentos entram como novos use cases/adapters, sem alterar o core |
-| **L** — Liskov Substitution | Qualquer implementação de `ClinicGateway` substitui outra (em testes, um mock Mockito) |
-| **I** — Interface Segregation | Gateways e use cases por agregado, com contratos enxutos por operação |
-| **D** — Dependency Inversion | Use cases dependem das **interfaces** de gateway; as implementações JPA ficam na infraestrutura |
+| **S**ingle Responsibility | Cada use case faz uma única operação (`AgendarConsultaCaseImpl`, `DeletarPacienteCaseImpl`, …) |
+| **O**pen/Closed | Novos comportamentos entram como novos use cases/adapters, sem tocar no core |
+| **L**iskov | Qualquer implementação de um gateway substitui outra (um mock Mockito nos testes) |
+| **I**nterface Segregation | Ports e use cases enxutos, segmentados por agregado e operação |
+| **D**ependency Inversion | Use cases dependem das **interfaces** de gateway; o JPA fica na borda |
 
----
-
-## 📁 Estrutura do Projeto
+## Estrutura do projeto
 
 ```
 src/main/java/dev/marcelo/clinicflow
-├── ClinicFlowApplication.java          # Entry point Spring Boot
-├── core/                               # ── Domínio (sem dependências de framework)
-│   ├── entities/                       # Records imutáveis: Appointment, Clinic, Doctor, Patient
-│   ├── enums/                          # AppointmentStatus, ClinicStatus, DoctorSpecialty, Gender
-│   ├── exceptions/                     # ClinicAlreadyExistsException, PatientNotFoundException
-│   ├── gateway/                        # Ports: AppointmentGateway, ClinicGateway, DoctorGateway, PatientGateway
-│   └── usecases/
-│       ├── appointment/                # Agendar, Buscar, Cancelar, Confirmar, Realizar,
-│       │                               # RegistrarNoShow, ListarPorMedico, ListarPorPaciente
-│       ├── clinic/                     # Criar, Atualizar, Buscar, Deletar, Listar
-│       ├── doctor/                     # Criar, Atualizar, Buscar, Deletar, Listar
-│       └── patient/                    # Criar, Atualizar, Buscar, Deletar, Listar
-└── infrastructure/                     # ── Adapters e detalhes técnicos
-    ├── beans/                          # BeanConfig: wiring dos use cases
-    ├── controller/                     # ClinicController, DoctorController, PatientController
-    ├── dtos/                           # Records de Request/Response por agregado
-    ├── gateway/                        # Implementações JPA dos ports do core
-    ├── handler/                        # GlobalExceptionHandler (ProblemDetail)
-    ├── mapper/                         # DTO ↔ domínio e domínio ↔ entidade JPA
-    └── persistence/                    # Entidades @Entity e repositórios JpaRepository
+├── ClinicFlowApplication.java
+├── core/                         # Domínio (sem framework)
+│   ├── entities/                 # Appointment, Clinic, Doctor, Patient, DoctorSchedule
+│   ├── enums/                    # AppointmentStatus, ClinicStatus, DoctorSpecialty, Gender
+│   ├── exceptions/               # Exceções de negócio tipadas
+│   ├── gateway/                  # Ports: *Gateway
+│   ├── services/                 # AgendaValidator (regras de agenda/slot)
+│   └── usecases/                 # appointment / clinic / doctor / patient
+└── infrastructure/               # Adapters e detalhes técnicos
+    ├── beans/                    # BeanConfig (wiring dos use cases)
+    ├── controller/               # Clinic, Doctor, Patient, Appointment controllers
+    ├── dtos/                     # records de Request/Response
+    ├── gateway/                  # implementações JPA dos ports
+    ├── handler/                  # GlobalExceptionHandler (ProblemDetail)
+    ├── mapper/                   # DTO ↔ domínio ↔ entidade JPA
+    └── persistence/              # @Entity + JpaRepository
 
 src/main/resources
-├── application.yaml                    # Datasource, JPA (ddl-auto: validate), Flyway
-└── db/migration/                       # V1..V5 — migrações Flyway versionadas
+├── application.yaml              # datasource, JPA (ddl-auto: validate), Flyway
+└── db/migration/                 # V1..V7 — migrações Flyway versionadas
 ```
 
----
+## Tecnologias
 
-## 🛠️ Tecnologias Utilizadas
-
-| Tecnologia | Versão | Finalidade |
+| Tecnologia | Versão | Uso |
 |---|---|---|
-| Java | 17 | Linguagem principal (records, streams) |
-| Spring Boot | 4.0.6 | Framework base, autoconfiguração e DI |
-| Spring Web MVC | starter | API REST |
-| Spring Data JPA | starter | Persistência ORM (Hibernate) |
-| PostgreSQL | runtime driver | Banco de dados relacional |
-| Flyway | starter + `flyway-database-postgresql` | Versionamento do schema (migrations) |
-| Kotlin (stdlib) | 2.2.20 | Stdlib e plugin Maven configurados no build |
-| JUnit 5 + Mockito + AssertJ | via starters de teste | Testes unitários e de contexto |
-| Maven (wrapper) | `mvnw` | Build e gerenciamento de dependências |
+| Java | 17 | Linguagem (records, streams) |
+| Spring Boot | 4.0.6 | Web MVC, Data JPA, Actuator, DI |
+| PostgreSQL | 16 | Banco relacional |
+| Flyway | starter + `flyway-database-postgresql` | Versionamento do schema |
+| Hibernate (via Spring Data JPA) | — | ORM em modo `validate` |
+| Testcontainers | JUnit 5 + PostgreSQL | Testes de integração com banco real |
+| JUnit 5 · Mockito · AssertJ | starters de teste | Testes unitários e de slice |
+| Maven Wrapper | `./mvnw` | Build e dependências |
 
----
+## Começando
 
-## ✅ Funcionalidades
+### Pré-requisitos
 
-### Clínicas
-- [x] Cadastrar clínica com validação de **CNPJ duplicado** (regra de negócio no use case)
-- [x] Especialidades da clínica normalizadas em tabela própria (`@ElementCollection`)
-- [ ] Listar, buscar, atualizar e deletar clínica *(contratos criados, implementação pendente)*
+- **Java 17+**
+- **Docker** (para subir o PostgreSQL; também usado pelos testes de integração)
 
-### Médicos
-- [x] CRUD completo (criar, listar, buscar por id, atualizar, deletar)
-- [x] Vínculo **N:N com clínicas** (`medico_clinica`), com validação de clínicas inexistentes
-- [x] Especialidade e gênero como enums persistidos por nome
+### 1. Clonar e subir o banco
 
-### Pacientes
-- [x] CRUD completo (criar, listar, buscar por id, atualizar, deletar)
-- [x] Erro `404` padronizado via `PatientNotFoundException`
+```bash
+git clone https://github.com/marcelopinotti/clinicflow.git
+cd clinicflow
+docker compose up -d        # PostgreSQL 16 em localhost:5431
+```
 
-### Consultas
-- [ ] Agendar, confirmar, cancelar, realizar, registrar no-show *(use cases e schema prontos, implementação pendente)*
-- [ ] Listar consultas por médico e por paciente
+O [`docker-compose.yml`](docker-compose.yml) provê um PostgreSQL com database `clinicflow` (usuário/senha `postgres`) e healthcheck.
 
-### Transversal
-- [x] Tratamento global de exceções com **`ProblemDetail` (RFC 7807)**
-- [x] Migrações de banco versionadas com **Flyway** (`ddl-auto: validate`)
+### 2. Rodar a aplicação
 
----
+```bash
+./mvnw spring-boot:run      # Windows: mvnw.cmd spring-boot:run
+```
 
-## 🔄 Casos de Uso
+As migrações Flyway são aplicadas no startup e a API sobe em **`http://localhost:8080`**.
 
-Todos os use cases seguem o mesmo padrão: **interface** (contrato) + **implementação** que recebe o gateway por construtor.
+### 3. Build do artefato
 
-### Clínica
+```bash
+./mvnw clean package
+java -jar target/ClinicFlow-0.0.1-SNAPSHOT.jar
+```
 
-| Use Case | Entrada | Saída | Fluxo | Status |
-|---|---|---|---|---|
-| `CriarClinicaCase` | `Clinic` | `Clinic` criada | Verifica `existePorCnpj`; se já existe lança `ClinicAlreadyExistsException` (HTTP 409); senão persiste via `ClinicGateway.criarClinica` | ✅ |
-| `BuscarClinicaCase` | `Long id` | `Clinic` | — | 🚧 stub |
-| `ListarClinicasCase` | — | `List<Clinic>` | — | 🚧 stub |
-| `AtualizarClinicaCase` | `Clinic` | `Clinic` | — | 🚧 stub |
-| `DeletarClinicaCase` | `Long id` | `void` | — | 🚧 stub |
+> [!TIP]
+> Para outro ambiente, sobrescreva o datasource por variáveis do Spring: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`.
 
-### Médico
+### Explorando a API
 
-| Use Case | Entrada | Saída | Fluxo |
-|---|---|---|---|
-| `CriarMedicoCase` | `Doctor` | `Doctor` | Delega ao `DoctorGateway`, que resolve os `clinicIds` em entidades (falha se alguma clínica não existir) e persiste |
-| `ListarMedicosCase` | — | `List<Doctor>` | `findAll` mapeado para domínio |
-| `BuscarMedicoCase` | `Long id` | `Optional<Doctor>` | `findById` mapeado; controller lança erro se vazio |
-| `AtualizarMedicoCase` | `Long id`, `Doctor` | `Doctor` | Busca o existente, preserva o `id`, aplica os novos dados e persiste; lança erro se não encontrado |
-| `DeletarMedicoCase` | `Long id` | `void` | Busca e deleta; lança erro se não encontrado |
+O arquivo [`projeto_final.http`](projeto_final.http) (IntelliJ HTTP Client) executa o **fluxo completo de ponta a ponta** — cria clínica, médico, agenda, paciente e percorre todo o ciclo da consulta, com asserts. Abra-o e clique em *Run all requests in file*.
 
-### Paciente
+## Referência da API
 
-Mesmo padrão do médico (`Criar`, `Listar`, `Buscar`, `Atualizar`, `Deletar`), com a diferença de usar a exceção tipada `PatientNotFoundException` → HTTP 404.
+Base URL: `http://localhost:8080` · Corpo: `application/json`
 
-### Consulta (🚧 em desenvolvimento)
-
-Contratos definidos: `AgendarConsultaCase`, `ConfirmarConsultaCase`, `CancelarConsultaCase`, `RealizarConsultaCase`, `RegistrarNoShowCase`, `BuscarConsultaCase`, `ListarConsultasPorMedicoCase`, `ListarConsultasPorPacienteCase`. As implementações existem como stubs e o `AppointmentGateway` ainda não expõe operações.
-
----
-
-## 🌐 Endpoints
-
-Base URL: `http://localhost:8080`
+> [!IMPORTANT]
+> Os enums trafegam pela sua **descrição em português**, não pelo nome da constante. Use os valores abaixo nos requests:
+> | Enum | Valores aceitos |
+> |---|---|
+> | `gender` | `Masculino` · `Feminino` · `Outro` |
+> | `specialty` / `specialties` | `Cardiologista` · `Dermatologista` · `Pediatra` · `Orthopedista` · `Neurologista` |
+> | `dayOfWeek` | `MONDAY` … `SUNDAY` |
+> | `status` (consulta) | `AGENDADA` · `CONFIRMADA` · `CANCELADA` · `REALIZADA` · `NO_SHOW` |
+>
+> Datas: `scheduledAt` no formato `yyyy-MM-dd HH:mm:ss`; horários (`startTime`/`endTime`) no formato `HH:mm:ss`.
 
 ### Clínicas — `/api/v1/clinicas`
 
-| Método | URL | Descrição | Sucesso | Erros |
+| Método | Rota | Descrição | Sucesso | Erros |
 |---|---|---|---|---|
-| `POST` | `/api/v1/clinicas/criar` | Cadastra uma clínica | `201` + `ClinicResponse` | `409` CNPJ já cadastrado |
+| `POST` | `/criar` | Cadastra uma clínica | `201` | `409` CNPJ já cadastrado |
 
 <details>
-<summary>Exemplo de request/response</summary>
+<summary>Exemplo</summary>
 
-```json
+```jsonc
 // POST /api/v1/clinicas/criar
 {
   "name": "Clínica Saúde Total",
   "cnpj": "12.345.678/0001-90",
   "address": "Rua das Flores, 100",
-  "phone": "11999998888",
+  "phone": "+5511999998888",
   "email": "contato@saudetotal.com",
-  "specialties": ["CARDIOLOGY", "PEDIATRICS"]
+  "specialties": ["Cardiologista", "Pediatra"]
 }
 ```
-
-```json
+```jsonc
 // 201 Created
 {
   "id": 1,
   "name": "Clínica Saúde Total",
   "cnpj": "12.345.678/0001-90",
   "address": "Rua das Flores, 100",
-  "phone": "11999998888",
+  "phone": "+5511999998888",
   "email": "contato@saudetotal.com",
-  "status": null,
-  "specialties": ["CARDIOLOGY", "PEDIATRICS"]
-}
-```
-
-```json
-// 409 Conflict (ProblemDetail)
-{
-  "type": "about:blank",
-  "title": "Clínica já cadastrada",
-  "status": 409,
-  "detail": "Já existe uma clínica cadastrada com o CNPJ: 12.345.678/0001-90"
+  "status": "ACTIVE",
+  "specialties": ["Cardiologista", "Pediatra"]
 }
 ```
 </details>
 
-### Médicos — `/api/v1/doctor`
+### Médicos — `/api/v1/medicos`
 
-| Método | URL | Descrição | Sucesso | Erros |
+| Método | Rota | Descrição | Sucesso | Erros |
 |---|---|---|---|---|
-| `POST` | `/api/v1/doctor/criar` | Cadastra um médico (com `clinicIds` opcionais) | `200` + `DoctorResponse` | `500` se alguma clínica informada não existir |
-| `GET` | `/api/v1/doctor/listar` | Lista todos os médicos | `200` + `List<DoctorResponse>` | — |
-| `GET` | `/api/v1/doctor/listar/{id}` | Busca médico por id | `200` + `DoctorResponse` | `500` "Doctor not found" |
-| `PUT` | `/api/v1/doctor/atualizar/{id}` | Atualiza um médico | `200` + `DoctorResponse` | `500` se não encontrado |
-| `DELETE` | `/api/v1/doctor/deletar/{id}` | Remove um médico | `200` | `500` se não encontrado |
+| `POST` | `/criar` | Cadastra médico (com `clinicIds`) | `201` | `500`&nbsp;* clínica do vínculo inexistente |
+| `GET` | `/listar` | Lista todos os médicos | `200` | — |
+| `GET` | `/listar/{id}` | Busca médico por id | `200` | `500`&nbsp;* não encontrado |
+| `PUT` | `/atualizar/{id}` | Atualiza um médico | `200` | `500`&nbsp;* não encontrado |
+| `DELETE` | `/deletar/{id}` | Remove um médico | `200` | `500`&nbsp;* não encontrado |
+| `POST` | `/{id}/agenda/criar` | Cria janela de atendimento | `201` | `409` janela sobreposta · `400` janela inválida |
+| `GET` | `/{id}/agenda/listar` | Lista as janelas do médico | `200` | — |
+| `DELETE` | `/{id}/agenda/deletar/{agendaId}` | Remove uma janela | `200` | `500`&nbsp;* não encontrado |
+| `GET` | `/{id}/agenda/livres?data=YYYY-MM-DD` | Slots livres na data | `200` | — |
+
+> [!NOTE]
+> `*` Os endpoints de **médico** ainda sinalizam "não encontrado" / "clínica inexistente" com `RuntimeException` genérica, que cai no `500`. **Pacientes** e **consultas** já usam exceções tipadas (`*NotFoundException` → `404`) — uniformizar o médico é a rough edge conhecida do projeto.
 
 <details>
-<summary>Exemplo de request</summary>
+<summary>Exemplos</summary>
 
-```json
-// POST /api/v1/doctor/criar
+```jsonc
+// POST /api/v1/medicos/criar
 {
   "firstName": "Ana",
   "lastName": "Souza",
   "cpf": "123.456.789-00",
   "email": "ana.souza@clinica.com",
   "address": "Av. Paulista, 1000",
-  "phone": "11988887777",
+  "phone": "+5511988887777",
   "age": 38,
-  "crm": "CRM-SP 123456",
-  "gender": "FEMALE",
-  "specialty": "CARDIOLOGY",
+  "crm": "CRM123456",
+  "gender": "Feminino",
+  "specialty": "Cardiologista",
   "clinicIds": [1]
 }
+```
+```jsonc
+// POST /api/v1/medicos/1/agenda/criar  -> segunda, 09:00–12:00, slots de 30min
+{ "dayOfWeek": "MONDAY", "startTime": "09:00:00", "endTime": "12:00:00", "slotMinutes": 30 }
+```
+```jsonc
+// GET /api/v1/medicos/1/agenda/livres?data=2026-06-29  -> 6 slots
+[ { "horario": "09:00:00" }, { "horario": "09:30:00" }, { "horario": "10:00:00" },
+  { "horario": "10:30:00" }, { "horario": "11:00:00" }, { "horario": "11:30:00" } ]
 ```
 </details>
 
 ### Pacientes — `/api/v1/patient`
 
-| Método | URL | Descrição | Sucesso | Erros |
+| Método | Rota | Descrição | Sucesso | Erros |
 |---|---|---|---|---|
-| `POST` | `/api/v1/patient/criar` | Cadastra um paciente | `201` + `PatientResponse` | — |
-| `GET` | `/api/v1/patient/listar` | Lista todos os pacientes | `200` + `List<PatientResponse>` | — |
-| `GET` | `/api/v1/patient/listar/{id}` | Busca paciente por id | `200` + `PatientResponse` | `404` paciente não encontrado |
-| `PUT` | `/api/v1/patient/atualizar/{id}` | Atualiza um paciente | `200` + `PatientResponse` | `404` paciente não encontrado |
-| `DELETE` | `/api/v1/patient/deletar/{id}` | Remove um paciente | `200` | `404` paciente não encontrado |
+| `POST` | `/criar` | Cadastra um paciente | `201` | — |
+| `GET` | `/listar` | Lista todos os pacientes | `200` | — |
+| `GET` | `/listar/{id}` | Busca paciente por id | `200` | `404` |
+| `PUT` | `/atualizar/{id}` | Atualiza um paciente | `200` | `404` |
+| `DELETE` | `/deletar/{id}` | Remove um paciente | `200` | `404` |
 
----
+### Consultas — `/api/v1/consultas`
 
-## 🗄️ Banco de Dados
+| Método | Rota | Descrição | Sucesso | Erros |
+|---|---|---|---|---|
+| `POST` | `` | Agenda uma consulta | `201` | `409` · `404` · `400` |
+| `GET` | `/{id}` | Busca consulta por id | `200` | `404` |
+| `GET` | `?medicoId=&pacienteId=` | Lista por médico **ou** paciente | `200` | — |
+| `PATCH` | `/{id}/confirmar` | Confirma a consulta | `200` | `409` · `404` |
+| `PATCH` | `/{id}/reagendar` | Reagenda (revalida a agenda) | `200` | `409` · `404` |
+| `PATCH` | `/{id}/cancelar` | Cancela a consulta | `200` | `409` · `404` |
+| `PATCH` | `/{id}/realizar` | Marca como realizada | `200` | `409` · `404` |
+| `PATCH` | `/{id}/no-show` | Registra no-show | `200` | `409` · `404` |
 
-PostgreSQL com schema gerenciado **exclusivamente pelo Flyway** (`spring.jpa.hibernate.ddl-auto: validate` — o Hibernate apenas valida, nunca altera).
+<details>
+<summary>Exemplos</summary>
+
+```jsonc
+// POST /api/v1/consultas
+{ "clinicId": 1, "doctorId": 1, "patientId": 1, "scheduledAt": "2026-06-29 09:00:00" }
+```
+```jsonc
+// 201 Created
+{ "id": 1, "clinicId": 1, "doctorId": 1, "patientId": 1,
+  "scheduledAt": "2026-06-29 09:00:00", "status": "AGENDADA" }
+```
+```jsonc
+// PATCH /api/v1/consultas/1/reagendar
+{ "scheduledAt": "2026-06-29 10:00:00" }
+```
+```jsonc
+// 409 Conflict (ProblemDetail) — slot já ocupado
+{ "type": "about:blank", "title": "Conflito na operação da consulta",
+  "status": 409, "detail": "O médico 1 já possui uma consulta ativa no horário 2026-06-29T09:00" }
+```
+</details>
+
+### Tratamento de erros
+
+Exceções de negócio do `core` são traduzidas em `ProblemDetail` (RFC 7807) pelo `GlobalExceptionHandler`:
+
+| HTTP | Quando |
+|---|---|
+| `400 Bad Request` | data de consulta inválida, janela de agenda inválida, corpo/enum ilegível |
+| `404 Not Found` | clínica, médico ou paciente referenciado por uma consulta inexistente, e paciente no seu CRUD — via exceções tipadas (`*NotFoundException`) |
+| `409 Conflict` | CNPJ/CRM/CPF duplicado, slot ocupado, fora da agenda, médico não vinculado à clínica, transição de status inválida, consulta ainda não ocorrida, **violação de integridade do banco** (rede de segurança da unicidade de slot) |
+| `500` | "não encontrado" nos endpoints de **médico** (ainda usa `RuntimeException` genérica — ver nota acima) |
+
+## Regras de negócio das consultas
+
+O ciclo de vida da consulta e suas transições válidas:
+
+```mermaid
+stateDiagram-v2
+    [*] --> AGENDADA: agendar
+    AGENDADA --> CONFIRMADA: confirmar
+    AGENDADA --> CANCELADA: cancelar
+    CONFIRMADA --> REALIZADA: realizar
+    CONFIRMADA --> NO_SHOW: no-show
+    CONFIRMADA --> CANCELADA: cancelar
+    REALIZADA --> [*]
+    CANCELADA --> [*]
+    NO_SHOW --> [*]
+```
+
+Ao **agendar** ou **reagendar**, o `AgendaValidator` garante que o horário cai numa janela real do médico, alinhado à duração do slot, sem conflito com outra consulta ativa, com o médico vinculado à clínica e sem double-booking do paciente. `realizar` e `no-show` só são aceitos **após** o horário da consulta. Por fim, a unicidade `(médico, horário)` para consultas ativas é garantida **no banco** por um índice único parcial — duas requisições concorrentes para o mesmo slot não conseguem ambas gravar.
+
+## Banco de dados
+
+PostgreSQL com schema gerenciado **exclusivamente pelo Flyway** — o Hibernate roda em `ddl-auto: validate` (apenas valida, nunca altera).
 
 ```mermaid
 erDiagram
-    clinicas ||--o{ clinica_especialidades : "possui"
+    clinicas ||--o{ clinica_especialidades : possui
     clinicas ||--o{ medico_clinica : ""
     medicos  ||--o{ medico_clinica : ""
-    clinicas ||--o{ consultas : "sedia"
-    medicos  ||--o{ consultas : "atende"
-    pacientes||--o{ consultas : "agenda"
+    medicos  ||--o{ agendas : define
+    clinicas ||--o{ consultas : sedia
+    medicos  ||--o{ consultas : atende
+    pacientes||--o{ consultas : agenda
 
     clinicas {
         bigserial id PK
-        varchar name
         varchar cnpj UK
-        varchar address
-        varchar phone UK
         varchar email UK
+        varchar phone UK
         varchar status
-    }
-    clinica_especialidades {
-        bigint clinica_id PK_FK
-        varchar especialidade PK
     }
     medicos {
         bigserial id PK
-        varchar first_name
-        varchar last_name
         varchar cpf UK
-        varchar email UK
-        varchar address
-        varchar phone UK
-        integer age
         varchar crm UK
-        varchar gender
+        varchar email UK
+        varchar phone UK
         varchar specialty
-    }
-    medico_clinica {
-        bigint medico_id PK_FK
-        bigint clinica_id PK_FK
     }
     pacientes {
         bigserial id PK
-        varchar first_name
-        varchar last_name
         varchar cpf UK
         varchar email UK
-        varchar address
         varchar phone UK
-        integer age
-        varchar gender
+    }
+    agendas {
+        bigserial id PK
+        bigint medico_id FK
+        varchar day_of_week
+        time start_time
+        time end_time
+        integer slot_minutes
     }
     consultas {
         bigserial id PK
@@ -353,166 +375,40 @@ erDiagram
     }
 ```
 
-**Relacionamentos e estratégias:**
-
-- `medicos ↔ clinicas`: **N:N** via `medico_clinica` (`@ManyToMany`, fetch EAGER);
-- `clinicas → clinica_especialidades`: coleção de enums normalizada (`@ElementCollection`);
-- `consultas`: **N:1** para clínica, médico e paciente (`@ManyToOne`, FKs `NOT NULL`);
-- Enums persistidos como `STRING` (`@Enumerated(EnumType.STRING)`);
-- Chaves primárias `BIGSERIAL` com `GenerationType.IDENTITY`;
-- Unicidade garantida no banco: `cnpj`, `cpf`, `crm`, `email`, `phone`.
-
-**Migrações (`src/main/resources/db/migration`):**
-
-| Versão | Descrição |
+| Migração | Descrição |
 |---|---|
-| `V1` | Criação das tabelas `clinicas`, `medicos`, `pacientes`, `consultas` |
-| `V2` | Colunas obrigatórias (`NOT NULL`) em endereços, idade e especialidades |
-| `V3` | Adição de `cnpj` único em `clinicas` |
-| `V4` | Especialidades da clínica movidas para tabela normalizada `clinica_especialidades` |
-| `V5` | Tabela de junção `medico_clinica` (relacionamento N:N) |
+| `V1` | Tabelas `clinicas`, `medicos`, `pacientes`, `consultas` |
+| `V2` | Colunas obrigatórias (`NOT NULL`) |
+| `V3` | `cnpj` único em `clinicas` |
+| `V4` | Especialidades da clínica em tabela normalizada `clinica_especialidades` |
+| `V5` | Tabela de junção `medico_clinica` (N:N) |
+| `V6` | Tabela `agendas` (janelas de atendimento do médico) |
+| `V7` | Índice único **parcial** de slot do médico — `(medico_id, scheduled_at) WHERE status <> 'CANCELADA'` |
 
----
+> [!NOTE]
+> O índice de `V7` é **parcial** de propósito: consultas `CANCELADA` ficam de fora, de modo que cancelar uma consulta **libera o slot** para reuso, sem abrir brecha para double-booking entre as ativas.
 
-## 🔒 Segurança
-
-O projeto **ainda não possui** camada de segurança (Spring Security, JWT, OAuth2, roles ou filtros). Autenticação e autorização estão previstas no [Roadmap](#-roadmap).
-
----
-
-## 📦 Dependências
-
-| Dependência | Finalidade |
-|---|---|
-| `spring-boot-starter-webmvc` | Servidor web embarcado + Spring MVC para a API REST |
-| `spring-boot-starter-data-jpa` | Hibernate + Spring Data (repositórios `JpaRepository`) |
-| `spring-boot-starter-flyway` + `flyway-database-postgresql` | Execução automática das migrações no startup |
-| `postgresql` (runtime) | Driver JDBC do PostgreSQL |
-| `kotlin-stdlib-jdk8` + `kotlin-maven-plugin` | Suporte a Kotlin no build (stdlib disponível no classpath) |
-| `spring-boot-starter-data-jpa-test`, `spring-boot-starter-flyway-test`, `spring-boot-starter-webmvc-test`, `kotlin-test` (test) | JUnit 5, Mockito, AssertJ e slices de teste do Spring |
-
----
-
-## 🚀 Execução
-
-### Pré-requisitos
-
-- **Java 17+**
-- **PostgreSQL** rodando em `localhost:5431` com database `clinicflow`
-- (Opcional) Docker para subir o banco
-
-### Banco de dados
+## Testes
 
 ```bash
-docker run -d --name clinicflow-db \
-  -e POSTGRES_DB=clinicflow \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5431:5432 \
-  postgres:16
+./mvnw test      # testes unitários (rápidos, sem banco)
+./mvnw verify    # unitários + integração (Testcontainers — requer Docker)
 ```
 
-### Configuração
+- **Unitários** — use cases, gateways e controllers (`@WebMvcTest`) com Mockito + AssertJ, sem subir banco. Validam regras isoladamente (ex.: agendar **não persiste** quando o slot está ocupado).
+- **Integração** — `ClinicFlowEndToEndIT` exercita a stack real (controller → use case → gateway → JPA/Hibernate → Flyway) contra um **PostgreSQL efêmero via Testcontainers**, incluindo um teste de **agendamento concorrente** que prova a unicidade de slot no banco (um `201`, os demais `409`).
 
-As configurações ficam em [`src/main/resources/application.yaml`](src/main/resources/application.yaml):
+Cobertura atual: **113 testes unitários + 5 de integração**, todos verdes.
 
-| Propriedade | Valor padrão |
-|---|---|
-| `spring.datasource.url` | `jdbc:postgresql://localhost:5431/clinicflow` |
-| `spring.datasource.username` / `password` | `postgres` / `postgres` |
-| `spring.jpa.hibernate.ddl-auto` | `validate` |
-| `spring.flyway.enabled` | `true` |
+## Escopo & decisões
 
-> [!TIP]
-> Para outro ambiente, sobrescreva via variáveis do Spring, ex.: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`.
+O ClinicFlow é um projeto de **estudo/portfólio** com um objetivo claro: aplicar **Clean Architecture** e **SOLID** num domínio real, com regras de negócio não triviais e cobertura de testes. Esse objetivo foi atingido e o **núcleo do domínio está fechado**.
 
-### Rodando localmente
+Os itens abaixo ficaram **intencionalmente fora de escopo** — não são lacunas esquecidas, e sim uma fronteira consciente, por não acrescentarem ao recado arquitetural do projeto:
 
-```bash
-# Linux/macOS
-./mvnw spring-boot:run
+- **Autenticação/Autorização** (Spring Security, JWT, OAuth2): seria infraestrutura transversal sem demonstrar Clean Architecture/SOLID além do que o domínio já demonstra.
+- **Observabilidade** (métricas, tracing, logs estruturados) e **OpenAPI/Swagger**.
+- **Paginação e filtros** nas listagens.
 
-# Windows
-mvnw.cmd spring-boot:run
-```
-
-As migrações Flyway são aplicadas automaticamente no startup. A API sobe em `http://localhost:8080`.
-
-### Build
-
-```bash
-./mvnw clean package
-java -jar target/ClinicFlow-0.0.1-SNAPSHOT.jar
-```
-
----
-
-## 🧪 Testes
-
-```bash
-./mvnw test
-```
-
-Estratégia atual:
-
-- **Testes unitários de use case** com **Mockito + AssertJ**, sem subir o contexto Spring — o gateway é mockado, validando a regra de negócio isoladamente:
-  - `CriarClinicaCaseImplTest`: cria clínica quando o CNPJ não existe; lança `ClinicAlreadyExistsException` **sem persistir** quando o CNPJ já existe (`verify(..., never())`).
-- **Teste de contexto** (`ClinicFlowApplicationTests`): valida o carregamento da aplicação.
-
-A arquitetura facilita a expansão: como os use cases dependem só de interfaces, todos são testáveis sem banco e sem Spring.
-
----
-
-## ✨ Boas Práticas Implementadas
-
-- **Clean Architecture** — domínio isolado de framework; infraestrutura como detalhe substituível;
-- **Inversão de Dependência** — use cases dependem de ports (`*Gateway`), implementados na borda;
-- **Injeção de Dependência via construtor** — sem field injection; use cases instanciados explicitamente em `BeanConfig`;
-- **Imutabilidade** — entidades de domínio e DTOs como `record`s Java; atualizações criam novas instâncias;
-- **Separação de responsabilidades** — modelo de domínio ≠ entidade JPA ≠ DTO, com mappers dedicados para cada fronteira;
-- **Tratamento de exceções centralizado** — exceções de negócio tipadas no core, traduzidas para `ProblemDetail` (RFC 7807) no `GlobalExceptionHandler`;
-- **Schema como código** — Flyway com `ddl-auto: validate`, garantindo que o banco evolua apenas por migração versionada;
-- **Integridade no banco** — constraints `UNIQUE`/`NOT NULL`/FKs declaradas nas migrações, não apenas na aplicação.
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Implementar o módulo de **consultas**: agendar, confirmar, cancelar, realizar, registrar no-show, listagens por médico/paciente + `AppointmentController`;
-- [ ] Completar o CRUD de **clínicas** (buscar, listar, atualizar, deletar) e registrar os beans correspondentes;
-- [ ] Substituir `RuntimeException` genéricas por exceções tipadas (`DoctorNotFoundException`, `ClinicNotFoundException`) com handlers dedicados;
-- [ ] Validação de entrada com **Bean Validation** (`@Valid`, `@NotBlank`, CPF/CNPJ);
-- [ ] **Spring Security** com autenticação JWT e perfis de acesso;
-- [ ] Documentação interativa com **OpenAPI/Swagger**;
-- [ ] Testes de integração com **Testcontainers** (PostgreSQL real);
-- [ ] Paginação e filtros nas listagens;
-- [ ] Padronizar status HTTP (ex.: `204 No Content` em deleções).
-
----
-
-## 🤝 Contribuição
-
-1. Faça um *fork* do projeto;
-2. Crie uma branch a partir da `main`: `git checkout -b feature/minha-feature`;
-3. Siga o padrão arquitetural existente (use case com interface + impl no `core`, adapter na `infrastructure`, bean registrado no `BeanConfig`);
-4. Adicione testes unitários para novas regras de negócio;
-5. Abra um *Pull Request* descrevendo a mudança.
-
----
-
-## 📄 Licença
-
-Este projeto ainda não possui uma licença definida. Até lá, todos os direitos são reservados ao autor.
-
----
-
-## 👨‍💻 Autor
-
-<a href="https://github.com/marcelopinotti">
-  <img src="https://github.com/marcelopinotti.png" width="120px;" alt="Foto do Autor"/>
-</a>
-
-### Marcelo Pinotti
-
-GitHub:
-https://github.com/marcelopinotti
+> [!NOTE]
+> Caso o projeto evoluísse para produção, esses itens deixariam de ser "fora de escopo" e passariam a ser requisitos não-funcionais — outra camada de "necessário" que o domínio sozinho não cobre. A integridade tratada aqui é a **do domínio** (transições válidas, agenda, unicidade de slot), não a de autenticação.
