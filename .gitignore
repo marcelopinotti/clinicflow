@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 .maestro/
+
+### Documentação de issues (notas de trabalho) ###
+docs/
