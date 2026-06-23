@@ -14,8 +14,16 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -164,6 +172,103 @@ class ClinicFlowEndToEndIT extends AbstractIntegrationTest {
                         .content(medicoJson(cpf(), crm, phone(), email("medico"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Médico já cadastrado"));
+    }
+
+    /**
+     * Issue #22: prova de que a unicidade do slot é garantida no banco (não só pela
+     * checagem em código, que é read-then-write e falha sob corrida). Dispara N
+     * agendamentos concorrentes para o MESMO médico/slot e exige que exatamente um
+     * vença (201) e todos os demais recebam 409 — sem double-booking e sem vazar
+     * exceção de persistência como 500.
+     */
+    @Test
+    void agendamentoConcorrente_mesmoSlot_apenasUmVence_demaisRecebem409() throws Exception {
+        long clinicId = criarClinica(clinicaJson(novoCnpj(), phone(), email("clinica")));
+        long doctorId = criarMedico(clinicId);
+        criarAgenda(doctorId);
+        long patientId = criarPaciente();
+
+        LocalDate proximaSegunda = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        String scheduledAt = proximaSegunda.atTime(9, 0).format(DATE_TIME);
+        String consulta = """
+                {"clinicId":%d,"doctorId":%d,"patientId":%d,"scheduledAt":"%s"}
+                """.formatted(clinicId, doctorId, patientId, scheduledAt);
+
+        int concorrentes = 8;
+        CountDownLatch largada = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(concorrentes);
+        try {
+            List<Callable<Integer>> tarefas = new ArrayList<>();
+            for (int i = 0; i < concorrentes; i++) {
+                tarefas.add(() -> {
+                    largada.await(); // todos partem juntos para maximizar a corrida
+                    return mockMvc.perform(post("/api/v1/consultas")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(consulta))
+                            .andReturn().getResponse().getStatus();
+                });
+            }
+            List<Future<Integer>> futuros = new ArrayList<>();
+            for (Callable<Integer> tarefa : tarefas) {
+                futuros.add(pool.submit(tarefa));
+            }
+            largada.countDown();
+
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> futuro : futuros) {
+                statuses.add(futuro.get());
+            }
+
+            long criados = statuses.stream().filter(s -> s == 201).count();
+            long conflitos = statuses.stream().filter(s -> s == 409).count();
+            assertThat(criados).as("apenas um agendamento deve vencer a corrida").isEqualTo(1);
+            assertThat(conflitos).as("todos os demais devem receber 409").isEqualTo(concorrentes - 1);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // O slot das 09:00 ficou ocupado por exatamente uma consulta → restam 5 slots.
+        mockMvc.perform(get("/api/v1/medicos/{id}/agenda/livres", doctorId)
+                        .param("data", proximaSegunda.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(5));
+    }
+
+    /**
+     * Issue #22: cancelar uma consulta libera o slot para reuso. O índice único é
+     * PARCIAL ({@code WHERE status <> 'CANCELADA'}), então uma consulta cancelada não
+     * bloqueia uma nova marcação no mesmo horário.
+     */
+    @Test
+    void cancelarConsulta_liberaSlotParaReuso_indiceParcialIgnoraCanceladas() throws Exception {
+        long clinicId = criarClinica(clinicaJson(novoCnpj(), phone(), email("clinica")));
+        long doctorId = criarMedico(clinicId);
+        criarAgenda(doctorId);
+        long patientId = criarPaciente();
+
+        LocalDate proximaSegunda = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        String scheduledAt = proximaSegunda.atTime(9, 0).format(DATE_TIME);
+        String consulta = """
+                {"clinicId":%d,"doctorId":%d,"patientId":%d,"scheduledAt":"%s"}
+                """.formatted(clinicId, doctorId, patientId, scheduledAt);
+
+        MvcResult primeira = mockMvc.perform(post("/api/v1/consultas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(consulta))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long primeiraId = idDe(primeira);
+
+        mockMvc.perform(patch("/api/v1/consultas/{id}/cancelar", primeiraId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
+
+        // Mesmo slot, nova consulta → sucesso: a cancelada está fora do índice único.
+        mockMvc.perform(post("/api/v1/consultas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(consulta))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("AGENDADA"));
     }
 
     // ----------------------------------------------------------------------
