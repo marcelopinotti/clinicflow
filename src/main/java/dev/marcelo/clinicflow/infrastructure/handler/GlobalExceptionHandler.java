@@ -16,6 +16,7 @@ import dev.marcelo.clinicflow.core.exceptions.InvalidScheduleWindowException;
 import dev.marcelo.clinicflow.core.exceptions.OutsideDoctorScheduleException;
 import dev.marcelo.clinicflow.core.exceptions.OverlappingScheduleException;
 import dev.marcelo.clinicflow.core.exceptions.PatientNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -99,6 +100,14 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidScheduleWindow(InvalidScheduleWindowException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problemDetail.setTitle("Janela de atendimento inválida");
+        return problemDetail;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, "A operação conflita com um registro já existente.");
+        problemDetail.setTitle("Conflito de integridade");
         return problemDetail;
     }
 
