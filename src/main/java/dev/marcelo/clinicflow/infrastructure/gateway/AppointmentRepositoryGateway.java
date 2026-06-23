@@ -2,10 +2,12 @@ package dev.marcelo.clinicflow.infrastructure.gateway;
 
 import dev.marcelo.clinicflow.core.entities.Appointment;
 import dev.marcelo.clinicflow.core.enums.AppointmentStatus;
+import dev.marcelo.clinicflow.core.exceptions.DoctorTimeSlotTakenException;
 import dev.marcelo.clinicflow.core.gateway.AppointmentGateway;
 import dev.marcelo.clinicflow.infrastructure.mapper.AppointmentEntityMapper;
 import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentEntity;
 import dev.marcelo.clinicflow.infrastructure.persistence.AppointmentRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -25,11 +27,30 @@ public class AppointmentRepositoryGateway implements AppointmentGateway {
         this.mapper = mapper;
     }
 
+    private static final String SLOT_UNIQUE_INDEX = "uq_consultas_medico_slot_ativa";
+
     @Override
     public Appointment salvar(Appointment appointment) {
         AppointmentEntity entity = mapper.toEntity(appointment);
-        AppointmentEntity saved = repository.save(entity);
-        return mapper.toDomain(saved);
+        try {
+            AppointmentEntity saved = repository.saveAndFlush(entity);
+            return mapper.toDomain(saved);
+        } catch (DataIntegrityViolationException ex) {
+            if (isSlotUniqueViolation(ex)) {
+                throw new DoctorTimeSlotTakenException(appointment.doctor().id(), appointment.scheduledAt());
+            }
+            throw ex;
+        }
+    }
+
+    private boolean isSlotUniqueViolation(DataIntegrityViolationException ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message != null && message.contains(SLOT_UNIQUE_INDEX)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
