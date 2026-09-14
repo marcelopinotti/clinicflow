@@ -1,6 +1,7 @@
 package dev.marcelo.clinicflow.integration;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -14,6 +15,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * roda contra um banco efêmero, sem depender do {@code docker-compose.yml} de
  * desenvolvimento, tornando {@code ./mvnw verify} reprodutível.
  */
+@ActiveProfiles("postgresql")
 @Testcontainers
 public abstract class AbstractIntegrationTest {
 
