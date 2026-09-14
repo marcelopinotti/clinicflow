@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: ClinicFlow
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,classpath:db/h2
+
+  datasource:
+    # url: jdbc:postgresql://localhost:5431/clinicflow
+    # username: postgres
+    # password: postgres
+    # driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:clinicflow
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
