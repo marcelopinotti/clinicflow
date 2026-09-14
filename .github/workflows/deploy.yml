@@ -20,7 +20,7 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'amazon-corretto'
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Build and Package with Maven
@@ -43,7 +43,7 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'amazon-corretto'
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Gerar o JAR
