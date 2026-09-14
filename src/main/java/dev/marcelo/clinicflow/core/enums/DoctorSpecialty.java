@@ -4,7 +4,7 @@ public enum DoctorSpecialty {
     CARDIOLOGY("Cardiologista"),
     DERMATOLOGY("Dermatologista"),
     PEDIATRICS("Pediatra"),
-    ORTHOPEDICS("Orthopedista"),
+    ORTHOPEDICS("Ortopedista"),
     NEUROLOGY("Neurologista");
 
     private final String descricao;
